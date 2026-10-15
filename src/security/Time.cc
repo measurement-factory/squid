@@ -82,14 +82,15 @@ Security::ToPosixTime(const Time &from)
 }
 
 Security::TimePointer
-Security::MakeTime(const time_t time)
+Security::MakeTime(const SystemTimePointInSeconds time)
 {
 #if USE_OPENSSL
     TimePointer t(ASN1_TIME_new());
     if (!t)
         throw TextException(ToSBuf("ASN1_TIME_new() failed to allocate an ASN1_TIME structure", Ssl::ReportAndForgetErrors), Here());
-    if (!ASN1_TIME_set(t.get(), time))
-        throw TextException(ToSBuf("OpenSSL ASN1_TIME_set(", time, ") failed", Ssl::ReportAndForgetErrors), Here());
+    const auto posixTime = std::chrono::system_clock::to_time_t(time);
+    if (!ASN1_TIME_set(t.get(), posixTime))
+        throw TextException(ToSBuf("OpenSSL ASN1_TIME_set(", posixTime, ") failed", Ssl::ReportAndForgetErrors), Here());
     return t;
 #elif USE_GNUTLS
     throw TextException("Missing GnuTLS support for Security::MakeTime(time_t)", Here());

@@ -2702,10 +2702,11 @@ ConnStateData::configureRepeatingValidityRange(const sslproxy_cert_adapt &ca, Ss
     Assure(ca.validityRangePeriodDurationSeconds);
 
     const auto periodDuration = *ca.validityRangePeriodDurationSeconds;
-    Assure(periodDuration > 0);
-    const auto currentPeriodStart = (squid_curtime / periodDuration) * periodDuration;
-    Assure(currentPeriodStart <= squid_curtime);
-    Assure(squid_curtime < currentPeriodStart + periodDuration);
+    Assure(periodDuration > std::chrono::seconds::zero());
+    const auto now = std::chrono::system_clock::now(); // XXX std::chrono::seconds(squid_curtime);
+    const auto currentPeriodStart = SystemTimePointInSeconds{(now.time_since_epoch() / periodDuration) * periodDuration};
+    Assure(currentPeriodStart <= now);
+    Assure(now < currentPeriodStart + periodDuration);
 
     // To avoid problems with out-of-sync client clocks and transmission delays,
     // we want the client to see a certificate validity period that (from the
@@ -2721,11 +2722,11 @@ ConnStateData::configureRepeatingValidityRange(const sslproxy_cert_adapt &ca, Ss
     //
     //   AB BCCD DEEF  // what generated certificates are actually used/returned by Squid
 
-    time_t start = 0; // TBD below
+    auto start = currentPeriodStart; // TBD below
     const auto margin = periodDuration / 4;
-    if (squid_curtime < currentPeriodStart + margin)
+    if (now < currentPeriodStart + margin)
         start = currentPeriodStart - periodDuration / 2; // cert B: the middle of the previous period
-    else if (squid_curtime < currentPeriodStart + periodDuration - margin)
+    else if (now < currentPeriodStart + periodDuration - margin)
         start = currentPeriodStart; // cert C: the beginning of the current period
     else
         start = currentPeriodStart + periodDuration / 2; // cert D: the middle of the current period

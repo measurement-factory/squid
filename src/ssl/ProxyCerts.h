@@ -15,6 +15,7 @@
 #include "security/forward.h"
 #include "ssl/gadgets.h"
 
+#include <chrono>
 #include <optional>
 
 class sslproxy_cert_sign
@@ -61,7 +62,8 @@ public:
     /* these data members are used if and only if their algorithm has been configured */
     Security::TimePointer validityRangeFrom = nullptr; ///< fist setValidityRange algorithm parameter
     Security::TimePointer validityRangeTo = nullptr; ///< second setValidityRange algorithm parameter
-    std::optional<int /*XXX*/> validityRangePeriodDurationSeconds; // setRepeatingValidityPeriod algorithm parameter
+    // XXX: Drop "Seconds" from name
+    std::optional<std::chrono::seconds> validityRangePeriodDurationSeconds; // setRepeatingValidityPeriod algorithm parameter
 
     /// CheckValidityRangeFreshness() can do nothing until this time
     mutable time_t nextValidityRangeFreshnessCheck = 0;

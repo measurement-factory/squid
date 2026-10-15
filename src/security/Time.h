@@ -11,6 +11,7 @@
 
 #include "sbuf/forward.h"
 #include "security/forward.h"
+#include "time/gadgets.h"
 
 namespace Security {
 
@@ -26,7 +27,7 @@ TimePointer ParseTime(const SBuf &input, const char *description);
 time_t ToPosixTime(const Time &);
 
 /// creates a time object representing the given POSIX time_t moment
-TimePointer MakeTime(const time_t);
+TimePointer MakeTime(SystemTimePointInSeconds);
 
 /// std::ostream manipulator to print Time values in RFC 5280 Section 4.1.2.5.2
 /// YYYYMMDDHHMMSSZ format. This is not an AsGeneralizedTime stream manipulator

@@ -4337,10 +4337,6 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
     } else if (strcmp(al, Ssl::CertAdaptAlgorithmStr[Ssl::algSetRepeatingValidityRange]) == 0) {
         ca->alg = Ssl::algSetRepeatingValidityRange;
 
-        const auto reject = [](const char * const error, const char * const detail = "") {
-            throw TextException(ToSBuf(error, detail), Here());
-        };
-
         if (!param) {
             // XXX: Do not set this here. Leave unset until it is needed to generate dates.
 
@@ -4353,20 +4349,11 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
             param = "46";
         }
 
-        // TODO: Support time-units? See parseTimeUnit().
-        const auto days = xatoi(param);
-
-        if (days <= 0)
-            reject("setRepeatingValidityRange parameter must be a positive integer; got ", param);
-
-        // protect from overflows during subsequent conversion to seconds
-        const auto secondsInValidityDay = 86400;
-        const auto maxValue = std::numeric_limits<decltype(days)>::max() / secondsInValidityDay;
-        if (days > maxValue)
-            reject(ToSBuf("setRepeatingValidityRange parameter value exceeds ", maxValue, " days: ", param).c_str());
-
         ca->param = xstrdup(param);
-        ca->validityRangePeriodDurationSeconds = days * secondsInValidityDay;
+        // TODO: Support time-units via upgraded parseTimeLine<std::chrono::seconds>(param)
+        const auto days = xatof(param);
+        const auto nanoseconds = ToNanoSeconds(days, std::chrono::hours(24));
+        ca->validityRangePeriodDurationSeconds = FromNanoseconds<std::chrono::seconds>(nanoseconds, days);
     } else {
         debugs(3, DBG_CRITICAL, "FATAL: sslproxy_cert_adapt: unknown cert adaptation algorithm: " << al);
         self_destruct();

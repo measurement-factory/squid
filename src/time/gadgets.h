@@ -9,8 +9,12 @@
 #ifndef SQUID_SRC_TIME_GADGETS_H
 #define SQUID_SRC_TIME_GADGETS_H
 
+#include <chrono>
 #include <ctime>
 #include <iosfwd>
+
+/// system-clock time point with seconds precision
+using SystemTimePointInSeconds = std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>;
 
 /* Use uint64_t to store milliseconds */
 typedef uint64_t time_msec_t;
