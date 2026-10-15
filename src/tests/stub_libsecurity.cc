@@ -153,7 +153,10 @@ Security::SessionPointer NewSessionObject(const Security::ContextPointer &) STUB
 } // namespace Security
 
 #include "security/Time.h"
+Security::TimePointer Security::Clone(const TimePointer &) STUB_RETVAL(nullptr)
 Security::TimePointer Security::ParseTime(const SBuf &, const char *) STUB_RETVAL(nullptr)
 time_t Security::ToPosixTime(const Security::Time &) STUB_RETVAL(0)
+Security::TimePointer Security::MakeTime(SystemTimePointInSeconds) STUB_RETVAL(nullptr)
+SBuf Security::ToGeneralizedTimeString(const Time &) STUB_RETVAL(SBuf())
 bool operator <(const Security::Time &, const Security::Time &) STUB_RETVAL(false)
 
