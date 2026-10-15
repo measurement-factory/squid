@@ -854,13 +854,18 @@ Ssl::OneLineSummary(X509_NAME &name)
 
 bool Ssl::sslDateIsInTheFuture(char const * date)
 {
-    ASN1_TIME tm = {};
-
     // TODO: Use Security::ParseTime() after building libsecurity _before_ helpers.
-    if (!ASN1_TIME_set_string(&tm, date))
-        throw TextException(ToSBuf("Failed to parse ASN.1 time: ", date), Here());
+    Security::TimePointer t(ASN1_TIME_new());
+    if (!t)
+        throw TextException(ToSBuf("ASN1_TIME_new() failed to allocate an ASN1_TIME structure for parsing ", date), Here());
+#if HAVE_LIBCRYPTO_ASN1_TIME_SET_STRING
+    if (!ASN1_TIME_set_string(t.get(), date))
+        throw TextException(ToSBuf("ASN1_TIME_set_string() failed to parse ASN.1 time: ", date), Here());
+#else
+    throw TextException(ToSBuf("Need OpenSSL version providing ASN1_TIME_set_string() to parse ", date), Here());
+#endif
 
-    const auto cmpResult = X509_cmp_current_time(&tm);
+    const auto cmpResult = X509_cmp_current_time(t.get());
     debugs(83, 5, "date=" << date << " cmp=" << cmpResult);
     if (!cmpResult)
         throw TextException(ToSBuf("Failed to compare parsed ASN.1 time: ", date), Here());
