@@ -2722,14 +2722,14 @@ ConnStateData::configureRepeatingValidityRange(const sslproxy_cert_adapt &ca, Ss
     //
     //   AB BCCD DEEF  // what generated certificates are actually used/returned by Squid
 
-    auto start = currentPeriodStart; // TBD below
-    const auto margin = periodDuration / 4;
-    if (now < currentPeriodStart + margin)
-        start = currentPeriodStart - periodDuration / 2; // cert B: the middle of the previous period
-    else if (now < currentPeriodStart + periodDuration - margin)
-        start = currentPeriodStart; // cert C: the beginning of the current period
-    else
-        start = currentPeriodStart + periodDuration / 2; // cert D: the middle of the current period
+    const auto start = [&] {
+        const auto margin = periodDuration / 4;
+        if (now < currentPeriodStart + margin)
+            return currentPeriodStart - periodDuration / 2; // certificate B
+        if (now < currentPeriodStart + periodDuration - margin)
+            return currentPeriodStart; // certificate C
+        return currentPeriodStart + periodDuration / 2; // certificate D
+    }();
 
     cfg.validityRangeFrom = Security::MakeTime(start);
     cfg.validityRangeTo = Security::MakeTime(start + periodDuration);

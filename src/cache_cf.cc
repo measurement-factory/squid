@@ -4338,8 +4338,6 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
         ca->alg = Ssl::algSetRepeatingValidityRange;
 
         if (!param) {
-            // XXX: Do not set this here. Leave unset until it is needed to generate dates.
-
             // CA/Browser Forum's "Baseline Requirements for the Issuance and
             // Management of Publicly‐Trusted TLS Server Certificates" (v2.2.8
             // dated 2026-06-16), Section 6.3.2: "Certificates issued on or
@@ -4350,7 +4348,8 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
         }
 
         ca->param = xstrdup(param);
-        // TODO: Support time-units via upgraded parseTimeLine<std::chrono::seconds>(param)
+        // TODO: Support time-units via upgraded parseTimeLine<std::chrono::seconds>(param),
+        // after changing our parser to allow spaces inside algorithm {parameter block}.
         const auto days = xatof(param);
         const auto nanoseconds = ToNanoSeconds(days, std::chrono::hours(24));
         ca->validityRangePeriodDuration = FromNanoseconds<std::chrono::seconds>(nanoseconds, days);
