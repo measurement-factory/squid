@@ -4353,7 +4353,7 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
         // TODO: Support time-units via upgraded parseTimeLine<std::chrono::seconds>(param)
         const auto days = xatof(param);
         const auto nanoseconds = ToNanoSeconds(days, std::chrono::hours(24));
-        ca->validityRangePeriodDurationSeconds = FromNanoseconds<std::chrono::seconds>(nanoseconds, days);
+        ca->validityRangePeriodDuration = FromNanoseconds<std::chrono::seconds>(nanoseconds, days);
     } else {
         debugs(3, DBG_CRITICAL, "FATAL: sslproxy_cert_adapt: unknown cert adaptation algorithm: " << al);
         self_destruct();

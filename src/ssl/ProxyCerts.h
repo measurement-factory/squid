@@ -62,8 +62,7 @@ public:
     /* these data members are used if and only if their algorithm has been configured */
     Security::TimePointer validityRangeFrom = nullptr; ///< fist setValidityRange algorithm parameter
     Security::TimePointer validityRangeTo = nullptr; ///< second setValidityRange algorithm parameter
-    // XXX: Drop "Seconds" from name
-    std::optional<std::chrono::seconds> validityRangePeriodDurationSeconds; // setRepeatingValidityPeriod algorithm parameter
+    std::optional<std::chrono::seconds> validityRangePeriodDuration; // setRepeatingValidityPeriod algorithm parameter
 
     /// CheckValidityRangeFreshness() can do nothing until this time
     mutable time_t nextValidityRangeFreshnessCheck = 0;

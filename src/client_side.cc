@@ -2699,9 +2699,9 @@ void
 ConnStateData::configureRepeatingValidityRange(const sslproxy_cert_adapt &ca, Ssl::CertificateProperties &cfg)
 {
     Assure(ca.alg == Ssl::algSetRepeatingValidityRange);
-    Assure(ca.validityRangePeriodDurationSeconds);
+    Assure(ca.validityRangePeriodDuration);
 
-    const auto periodDuration = *ca.validityRangePeriodDurationSeconds;
+    const auto periodDuration = *ca.validityRangePeriodDuration;
     Assure(periodDuration > std::chrono::seconds::zero());
     const auto now = std::chrono::system_clock::now(); // XXX std::chrono::seconds(squid_curtime);
     const auto currentPeriodStart = SystemTimePointInSeconds{(now.time_since_epoch() / periodDuration) * periodDuration};
