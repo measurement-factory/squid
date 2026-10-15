@@ -362,6 +362,7 @@ MemStore::updateHeaders(StoreEntry *updatedE, const StoreEntry &e304)
         updateHeadersOrThrow(update);
     } catch (const std::exception &ex) {
         debugs(20, 2, "error starting to update entry " << *updatedE << ": " << ex.what());
+        throw;
         map->abortUpdating(update);
     }
 }

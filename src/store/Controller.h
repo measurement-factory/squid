@@ -86,7 +86,7 @@ public:
 
     /// using a 304 response, update the old entry (metadata and reply headers)
     /// \returns whether the old entry can be used (and is considered fresh)
-    bool updateOnNotModified(StoreEntry *old, StoreEntry &e304) noexcept;
+    bool updateOnNotModified(StoreEntry *old, StoreEntry &e304);
 
     /// tries to make the entry available for collapsing future requests
     bool allowCollapsing(StoreEntry *, const RequestFlags &, const HttpRequestMethod &);
@@ -125,7 +125,7 @@ public:
     StoreSearch *search();
 
     /// adjusts the shared transients entry after the 304 update has been successfully applied (or failed)
-    void updateFinished(StoreEntry &e, const StoreEntry &e304, Ipc::StoreMapAnchor::UpdateStatus) noexcept;
+    void updateFinished(StoreEntry &e, const StoreEntry &e304, Ipc::StoreMapAnchor::UpdateStatus);
 
     /// adjusts the 'updateStatus' shared transients entry state after the entry has been
     /// either updated by a 304 or overwritten by a cacheable response
