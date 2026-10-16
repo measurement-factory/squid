@@ -36,6 +36,7 @@
 #include "auth/UserRequest.h"
 #endif
 #if USE_OPENSSL
+#include "security/Alpn.h"
 #include "security/forward.h"
 #include "security/Handshake.h"
 #include "ssl/support.h"
@@ -308,6 +309,10 @@ public:
     const SBuf &sslCommonName() const {return sslCommonName_;}
     void resetSslCommonName(const char *name) {sslCommonName_ = name;}
     const SBuf &tlsClientSni() const { return tlsClientSni_; }
+
+    /// ALPN protocols offered by the TLS client, in client-preferred order
+    const Security::AlpnProtocols &tlsClientAlpns() const { return tlsClientAlpns_; }
+
     /// Fill the certAdaptParams with the required data for certificate adaptation
     /// and create the key for storing/retrieve the certificate to/from the cache
     void buildSslCertGenerationParams(Ssl::CertificateProperties &certProperties);
@@ -548,6 +553,10 @@ private:
 
     /// TLS client delivered SNI value. Empty string if none has been received.
     SBuf tlsClientSni_;
+
+    /// ALPN protocols offered by the TLS client. Empty if none have been received.
+    Security::AlpnProtocols tlsClientAlpns_;
+
     SBuf sslBumpCertKey; ///< Key to use to store/retrieve generated certificate
 
     /// HTTPS server cert. fetching state for bump-ssl-server-first

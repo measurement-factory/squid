@@ -125,6 +125,7 @@ ClientHttpRequest::ClientHttpRequest(ConnStateData * aConn) :
         al->updateError(aConn->bareError);
 
 #if USE_OPENSSL
+        al->ssl.clientAlpns = aConn->tlsClientAlpns();
         if (aConn->clientConnection->isOpen()) {
             if (auto ssl = fd_table[aConn->clientConnection->fd].ssl.get())
                 al->cache.sslClientCert.resetWithoutLocking(SSL_get_peer_certificate(ssl));
