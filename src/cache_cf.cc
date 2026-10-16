@@ -4351,7 +4351,21 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
         // TODO: Support time-units via upgraded parseTimeLine<std::chrono::seconds>(param),
         // after changing our parser to allow spaces inside algorithm {parameter block}.
         const auto days = xatof(param);
-        const auto nanoseconds = ToNanoSeconds(days, std::chrono::hours(24));
+        constexpr auto day = std::chrono::hours(24);
+        const auto nanoseconds = ToNanoSeconds(days, day);
+
+        // ConnStateData::configureRepeatingValidityRange() splits period into 4
+        // parts. X.509 certificate validity times have whole-second precision.
+        const auto minDuration = std::chrono::seconds(4);
+        if (nanoseconds < minDuration) {
+            // We only get here if the admin used a fractional number of days.
+            // Convert to report our minimum in fractional days.
+            using FractionalDays = std::chrono::duration<double, std::ratio<day/std::chrono::seconds(1)>>;
+            const FractionalDays minDays = minDuration;
+            throw TextException(ToSBuf("setRepeatingValidityRange duration is too small: ", param, " days",
+                                       Debug::Extra, "hint: the minimum value is ", std::fixed, std::setprecision(std::numeric_limits<double>::max_digits10), minDays.count(), " days"), Here());
+        }
+
         ca->validityRangePeriodDuration = FromNanoseconds<std::chrono::seconds>(nanoseconds, days);
     } else {
         debugs(3, DBG_CRITICAL, "FATAL: sslproxy_cert_adapt: unknown cert adaptation algorithm: " << al);
