@@ -68,7 +68,7 @@ Security::ParseTime(const SBuf &generalizedTime, const char * const description)
 time_t
 Security::ToPosixTime(const Time &from)
 {
-#if USE_OPENSSL
+#if HAVE_LIBCRYPTO_ASN1_TIME_TO_TM
     std::tm resultTm = {};
     if (!ASN1_TIME_to_tm(&from, &resultTm))
         throw TextException("ASN1_TIME_to_tm() failure", Here());
@@ -132,7 +132,6 @@ asn1time_cmp(const ASN1_TIME *asnTime1, const ASN1_TIME *asnTime2)
     // TODO: Use ASN1_TIME_compare() when built with OpenSSL v1.1.1 or later.
     return Security::ToGeneralizedTimeString(*asnTime1).cmp(Security::ToGeneralizedTimeString(*asnTime2));
 }
-
 #endif // USE_OPENSSL
 
 bool
