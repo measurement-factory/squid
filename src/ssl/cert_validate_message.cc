@@ -153,25 +153,25 @@ Ssl::CertValidationMsg::tryParsingResponse(CertValidationResponse &resp)
                v.c_str());
 
         if (param_len == param_transactionNotes.length() &&
-            strncmp(param, param_transactionNotes.c_str(), param_transactionNotes.length()) == 0) {
+                strncmp(param, param_transactionNotes.c_str(), param_transactionNotes.length()) == 0) {
             resp.notes.importFromHelper(SBuf(v.c_str(), v.length()));
             param = value + value_len;
             continue;
         }
 
         if (param_len == param_clientNotes.length() &&
-            strncmp(param, param_clientNotes.c_str(), param_clientNotes.length()) == 0) {
+                strncmp(param, param_clientNotes.c_str(), param_clientNotes.length()) == 0) {
 
             // TODO: Support arbitrary client annotations when up-porting.
             static std::string supportedName = "clt_conn_tag=";
             if (v.compare(0, supportedName.size(), supportedName) != 0) {
                 throw TextException(ToSBuf("Only annotations named ", supportedName,
-                    " can be used for client connection annotation in this Squid version. ",
-                    "Found: ", v), Here());
+                                           " can be used for client connection annotation in this Squid version. ",
+                                           "Found: ", v), Here());
             }
             if (v.find(' ') != std::string::npos) {
                 throw TextException(ToSBuf("Only one client connection annotation can be used in this Squid version. ",
-                    "Found: ", v), Here());
+                                           "Found: ", v), Here());
             }
             resp.notes.importFromHelper(SBuf(v.c_str(), v.length()));
 

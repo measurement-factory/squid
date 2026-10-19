@@ -21,9 +21,6 @@
 #include "sbuf/SBuf.h"
 #include "sbuf/Stream.h"
 #include "sbuf/StringConvert.h"
-#include "parser/Tokenizer.h"
-#include "sbuf/Stream.h"
-#include "sbuf/StringConvert.h"
 #include "SquidConfig.h"
 #include "Store.h"
 #include "StrList.h"
@@ -375,15 +372,15 @@ NotePairs::importFromHelper(const SBuf &rawNotes)
     Parser::Tokenizer tok(rawNotes);
     while (!tok.atEnd()) {
         static const auto nameChars = (
-            CharacterSet::ALPHA +
-            CharacterSet::DIGIT +
-            CharacterSet("other", "-._")
-        ).rename("helper-note-name");
+                                          CharacterSet::ALPHA +
+                                          CharacterSet::DIGIT +
+                                          CharacterSet("other", "-._")
+                                      ).rename("helper-note-name");
 
         static const auto valueChars = (
-            CharacterSet::WSP +
-            CharacterSet("comma", ",") // we do not support CSVs (yet?)
-        ).complement("helper-note-value");
+                                           CharacterSet::WSP +
+                                           CharacterSet("comma", ",") // we do not support CSVs (yet?)
+                                       ).complement("helper-note-value");
 
         SBuf name;
         if (!tok.prefix(name, nameChars))
