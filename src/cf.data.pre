@@ -3654,9 +3654,9 @@ DOC_START
 		the generated certificate to satisfy the configured validity range while
 		leaving a comfortable validity margin from the current time to avoid
 		dangerous "not yet valid" and "already expired" race conditions with
-		client clocks. Given enough time, Squid generates new certificates as the
-		"Not Before" and "Not After" values need to change to maintain those
-		safety margins.
+		client clocks. The selection is made whenever a generated certificate is
+		needed. As time passes, Squid selects new "Not Before" and "Not After"
+		values, generating new certificates to maintain those safety margins.
 
 		The optional `{range}` parameter uses `{<time><time-unit>}` format. When
 		omitted, Squid uses a reasonable default that may change with Squid
