@@ -242,8 +242,10 @@ const char *Ssl::CertAdaptAlgorithmStr[] = {
     "setValidBefore",
     "setCommonName",
     "setValidityRange",
+    "setRepeatingValidityRange",
     nullptr
 };
+static_assert(sizeof(Ssl::CertAdaptAlgorithmStr)/sizeof(*Ssl::CertAdaptAlgorithmStr) == Ssl::algSetEnd + 1);
 
 Ssl::CertificateProperties::CertificateProperties():
     setValidAfter(false),
@@ -265,6 +267,7 @@ Ssl::CertificateProperties::skipRule(const int algorithm) const
     case Ssl::algSetCommonName:
         return setCommonName;
     case Ssl::algSetValidityRange:
+    case Ssl::algSetRepeatingValidityRange:
         return setValidityRange || setValidAfter || setValidBefore;
     case Ssl::algSetEnd:
     default:

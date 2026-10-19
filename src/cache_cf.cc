@@ -53,6 +53,7 @@
 #include "mgr/Registration.h"
 #include "neighbors.h"
 #include "NeighborTypeDomainList.h"
+#include "parser/Tokenizer.h"
 #include "Parsing.h"
 #include "pconn.h"
 #include "PeerDigest.h"
@@ -1224,29 +1225,23 @@ FromNanoseconds(const std::chrono::nanoseconds &ns, const double parsedValue)
     return result;
 }
 
-/// Parses a time specification from the config file and
-/// returns the time as a chrono duration object of 'TimeUnit' type.
+/// This helper converts the given time value and time unit tokens into an
+/// std::chrono::duration object of `TimeUnit` type. For zero time values, an
+/// empty time unit string is accepted.
+///
+/// Avoid direct calls. Use parseTimeLine() and parseTimeAndUnit() instead.
 template <class TimeUnit>
 static TimeUnit
-parseTimeLine()
+parseTimeAndUnit_(SBuf valueToken, SBuf unitToken)
 {
-    const auto valueToken = ConfigParser::NextToken();
-    if (!valueToken)
-        throw TexcHere("cannot read a time value");
-
-    const auto parsedValue = xatof(valueToken);
-
-    if (parsedValue == 0)
+    Assure(!valueToken.isEmpty());
+    const auto parsedValue = xatof(valueToken.c_str());
+    if (parsedValue == 0 && unitToken.isEmpty())
         return TimeUnit::zero();
 
     std::chrono::nanoseconds parsedUnitDuration;
-
-    const auto token = ConfigParser::PeekAtToken();
-
-    if (!parseTimeUnit<TimeUnit>(token, parsedUnitDuration))
-        throw TexcHere(ToSBuf("unknown time unit '", token, "'"));
-
-    (void)ConfigParser::NextToken();
+    if (!parseTimeUnit<TimeUnit>(unitToken.c_str(), parsedUnitDuration))
+        throw TexcHere(ToSBuf("unknown time unit '", unitToken, "'"));
 
     const auto nanoseconds = ToNanoSeconds(parsedValue, parsedUnitDuration);
 
@@ -1255,11 +1250,42 @@ parseTimeLine()
         if (0 < nanoseconds.count() && nanoseconds.count() < 3) {
             debugs(3, DBG_PARSE_NOTE(DBG_IMPORTANT), ConfigParser::CurrentLocation() << ": WARNING: " <<
                    "Squid time measurement precision is likely to be far worse than " <<
-                   "the nanosecond-level precision implied by the configured value: " << parsedValue << ' ' << token);
+                   "the nanosecond-level precision implied by the configured value: " << parsedValue << ' ' << unitToken);
         }
     }
 
     return FromNanoseconds<TimeUnit>(nanoseconds, parsedValue);
+}
+
+/// Extracts and parses a `<number> [time unit]` configuration tokens. XXX: The
+/// unit token is not extracted and, hence, not validated for zero time values.
+/// \returns the corresponding std::chrono::duration object of `TimeUnit` type.
+template <class TimeUnit>
+static TimeUnit
+parseTimeLine()
+{
+    auto valueToken = LegacyParser.token("time value");
+    // Zero values preclude unitToken extraction.
+    const auto isZero = xatof(valueToken.c_str()) == 0;
+    const auto unitToken = (isZero ? SBuf() : LegacyParser.token("time unit"));
+    return parseTimeAndUnit_<TimeUnit>(valueToken, unitToken);
+}
+
+/// Parses a `<number>[time unit]` configuration token. The unit part may be
+/// omitted for zero time values.
+/// \returns the corresponding std::chrono::duration object of `TimeUnit` type.
+template <class TimeUnit>
+static TimeUnit
+parseTimeAndUnit(const SBuf input)
+{
+    // split on the boundary between the leading number and trailing time unit
+    CharacterSet NumberChars = CharacterSet("Number", "-+.") + CharacterSet::DIGIT;
+    Parser::Tokenizer tok(input);
+    SBuf number;
+    if (!tok.prefix(number, NumberChars))
+        throw TextException("missing time value", Here());
+
+    return parseTimeAndUnit_<TimeUnit>(number, tok.remaining());
 }
 
 static void
@@ -4323,18 +4349,42 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
         // TODO: Use Tokenizer after upgrading sslproxy_cert_adapt from a POD.
         if (const auto comma = strchr(param, ',')) {
             ca->param = xstrdup(param);
-            ca->param1 = xstrndup(param, comma - param + 1);
-            ca->param2 = xstrdup(comma + 1);
+            ca->validityRangeFrom = Security::ParseTime(SBuf(param, comma - param), "'from' parameter of setValidityRange algorithm");
+            ca->validityRangeTo = Security::ParseTime(SBuf(comma + 1), "'to' parameter of setValidityRange algorithm");
         } else {
             reject("setValidityRange is missing a comma between {from,to} parameters", param);
         }
 
-        // TODO: Upgrade sslproxy_cert_adapt from a POD and store these there.
-        const auto from = Security::ParseTime(ca->param1, "setValidityRange 'from' parameter");
-        const auto to = Security::ParseTime(ca->param2, "setValidityRange 'to' parameter");
-        if (*to < *from)
+        Assure(ca->validityRangeFrom);
+        Assure(ca->validityRangeTo);
+        if (*ca->validityRangeTo < *ca->validityRangeFrom)
             reject("setValidityRange 'from' parameter is greater than 'to': ", param);
-        CheckValidityRangeFreshness(*ca, *from, *to);
+        CheckValidityRangeFreshness(*ca, *ca->validityRangeFrom, *ca->validityRangeTo);
+    } else if (strcmp(al, Ssl::CertAdaptAlgorithmStr[Ssl::algSetRepeatingValidityRange]) == 0) {
+        ca->alg = Ssl::algSetRepeatingValidityRange;
+
+        if (!param) {
+            // CA/Browser Forum's "Baseline Requirements for the Issuance and
+            // Management of Publicly‐Trusted TLS Server Certificates" (v2.2.8
+            // dated 2026-06-16), Section 6.3.2: "Certificates issued on or
+            // after 2029‐03‐15 SHOULD NOT have a Validity Period greater than
+            // 46 days and MUST NOT have a Validity Period greater than 47 days.
+            // https://cabforum.org/working-groups/server/baseline-requirements/documents/
+            param = "46days";
+        }
+
+        ca->param = xstrdup(param);
+        const auto parsedTime = parseTimeAndUnit<std::chrono::seconds>(SBuf(param));
+
+        // ConnStateData::configureRepeatingValidityRange() splits period into 4
+        // parts. X.509 certificate validity times have whole-second precision.
+        const auto minDuration = std::chrono::seconds(4);
+        if (parsedTime < minDuration) {
+            throw TextException(ToSBuf("setRepeatingValidityRange duration is too small: ", param,
+                                       Debug::Extra, "hint: the minimum value is ", minDuration.count(), " seconds"), Here());
+        }
+
+        ca->validityRangePeriodDuration = parsedTime;
     } else {
         debugs(3, DBG_CRITICAL, "FATAL: sslproxy_cert_adapt: unknown cert adaptation algorithm: " << al);
         self_destruct();

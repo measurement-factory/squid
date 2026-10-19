@@ -15,6 +15,9 @@
 #include "security/forward.h"
 #include "ssl/gadgets.h"
 
+#include <chrono>
+#include <optional>
+
 class sslproxy_cert_sign
 {
 public:
@@ -48,8 +51,6 @@ public:
             delete first;
         }
         xfree(param);
-        xfree(param1);
-        xfree(param2);
         if (aclList)
             aclDestroyAclList(&aclList);
     }
@@ -57,8 +58,11 @@ public:
 public:
     Ssl::CertAdaptAlgorithm alg = Ssl::algSetEnd;
     char *param = nullptr; ///< all adaptation algorithm parameters (as configured)
-    char *param1 = nullptr; ///< the first parameter in multi-parameter algorithm config
-    char *param2 = nullptr; ///< the second parameter in multi-parameter algorithm config
+
+    /* these data members are used if and only if their algorithm has been configured */
+    Security::TimePointer validityRangeFrom = nullptr; ///< fist setValidityRange algorithm parameter
+    Security::TimePointer validityRangeTo = nullptr; ///< second setValidityRange algorithm parameter
+    std::optional<std::chrono::seconds> validityRangePeriodDuration; // setRepeatingValidityPeriod algorithm parameter
 
     /// CheckValidityRangeFreshness() can do nothing until this time
     mutable time_t nextValidityRangeFreshnessCheck = 0;

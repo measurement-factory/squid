@@ -203,6 +203,7 @@ enum CertAdaptAlgorithm {
     algSetValidBefore,
     algSetCommonName,
     algSetValidityRange,
+    algSetRepeatingValidityRange,
     algSetEnd
 };
 

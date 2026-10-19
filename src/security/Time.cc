@@ -11,22 +11,43 @@
 #include "debug/Stream.h"
 #include "sbuf/Stream.h"
 #include "security/Time.h"
+#if USE_OPENSSL
+#include "ssl/support.h"
+#endif
 
 #include <ctime>
 
 #if USE_OPENSSL
 Security::TimePointer
-Security::ParseTime(const char * const generalizedTime, const char * const description)
+Security::Clone(const TimePointer &old)
 {
-    assert(generalizedTime);
+    if (!old)
+        return nullptr;
+
+#if USE_OPENSSL
+    // OpenSSL v1.0 API appears to lack ASN1_TIME_dup() so we emulate until we can require OpenSSL v1.1.
+    TimePointer t(static_cast<ASN1_TIME*>(ASN1_STRING_dup(static_cast<const ASN1_STRING *>(old.get()))));
+    if (!t)
+        throw TextException("OpenSSL ASN1_STRING_dup() failed", Here());
+    return t;
+#elif USE_GNUTLS
+    throw TextException("Missing GnuTLS support for Time manipulation", Here());
+#else
+    throw TextException("TLS library required for Time manipulation ", Here());
+#endif
+}
+
+Security::TimePointer
+Security::ParseTime(const SBuf &generalizedTime, const char * const description)
+{
     debugs(33, DBG_PARSE_NOTE(2), description << ": " << generalizedTime);
 
 #if USE_OPENSSL
-    TimePointer t(ASN1_TIME_set(nullptr, 0));
+    TimePointer t(ASN1_TIME_new());
     if (!t)
-        throw TextException(ToSBuf("ASN1_TIME_set() failed to allocate an ASN1_TIME structure for parsing ", description), Here());
+        throw TextException(ToSBuf("ASN1_TIME_new() failed to allocate an ASN1_TIME structure for parsing ", description), Here());
 #if HAVE_LIBCRYPTO_ASN1_TIME_SET_STRING
-    if (!ASN1_TIME_set_string(t.get(), generalizedTime))
+    if (!ASN1_TIME_set_string(t.get(), SBuf(generalizedTime).c_str()))
         throw TextException(ToSBuf("ASN1_TIME_set_string() failed to parse ", description, ": ", generalizedTime), Here());
 #else
     throw TextException(ToSBuf("Need OpenSSL version providing ASN1_TIME_set_string() to parse ", description), Here());
@@ -60,50 +81,56 @@ Security::ToPosixTime(const Time &from)
 #endif
 }
 
-#if USE_OPENSSL
-/// Print the time represented by a ASN1_TIME struct to a string using GeneralizedTime format
-static bool
-asn1timeToGeneralizedTimeStr(const ASN1_TIME *aTime, char *buf, const int bufLen)
+Security::TimePointer
+Security::MakeTime(const SystemTimePointInSeconds time)
 {
+#if USE_OPENSSL
+    TimePointer t(ASN1_TIME_new());
+    if (!t)
+        throw TextException(ToSBuf("ASN1_TIME_new() failed to allocate an ASN1_TIME structure", Ssl::ReportAndForgetErrors), Here());
+    const auto posixTime = std::chrono::system_clock::to_time_t(time);
+    if (!ASN1_TIME_set(t.get(), posixTime))
+        throw TextException(ToSBuf("OpenSSL ASN1_TIME_set(", posixTime, ") failed", Ssl::ReportAndForgetErrors), Here());
+    return t;
+#elif USE_GNUTLS
+    throw TextException("Missing GnuTLS support for Security::MakeTime(time_t)", Here());
+#else
+    throw TextException("TLS library required to Security::MakeTime(time_t)", Here());
+#endif
+}
+
+SBuf
+Security::ToGeneralizedTimeString(const Time &time)
+{
+#if USE_OPENSSL
     // ASN1_Time  holds time to UTCTime or GeneralizedTime form.
     // UTCTime has the form YYMMDDHHMMSS[Z | [+|-]offset]
     // GeneralizedTime has the form YYYYMMDDHHMMSS[Z | [+|-] offset]
+    SBuf buf;
+    if (time.type == V_ASN1_UTCTIME) {
+        buf.reserveSpace(time.length + 2);
+        if (time.data[0] > '5') // RFC 2459, section 4.1.2.5.1
+            buf.append('1').append('9');
+        else
+            buf.append('2').append('0');
+    }
+    // else (time.type == V_ASN1_GENERALIZEDTIME)
 
-    // length should have space for data plus 2 extra bytes for the two extra year fields
-    // plus the '\0' char.
-    if ((aTime->length + 3) > bufLen)
-        return false;
-
-    char *str;
-    if (aTime->type == V_ASN1_UTCTIME) {
-        if (aTime->data[0] > '5') { // RFC 2459, section 4.1.2.5.1
-            buf[0] = '1';
-            buf[1] = '9';
-        } else {
-            buf[0] = '2';
-            buf[1] = '0';
-        }
-        str = buf +2;
-    } else // if (aTime->type == V_ASN1_GENERALIZEDTIME)
-        str = buf;
-
-    memcpy(str, aTime->data, aTime->length);
-    str[aTime->length] = '\0';
-    return true;
+    // Security::Time stores unsigned chars, but SBuf is using regular ones
+    static_assert(std::is_same<decltype(time.data), unsigned char *>::value);
+    buf.append(reinterpret_cast<char *>(time.data), time.length);
+    return buf;
+#else
+#error XXX: Implement for GnuTLS and others
+#endif
 }
 
+#if USE_OPENSSL
 static int
 asn1time_cmp(const ASN1_TIME *asnTime1, const ASN1_TIME *asnTime2)
 {
     // TODO: Use ASN1_TIME_compare() when built with OpenSSL v1.1.1 or later.
-    // TODO: Throw on failures instead of lying about asnTime1 < asnTime2!
-    char strTime1[64], strTime2[64];
-    if (!asn1timeToGeneralizedTimeStr(asnTime1, strTime1, sizeof(strTime1)))
-        return -1;
-    if (!asn1timeToGeneralizedTimeStr(asnTime2, strTime2, sizeof(strTime2)))
-        return -1;
-
-    return strcmp(strTime1, strTime2);
+    return Security::ToGeneralizedTimeString(*asnTime1).cmp(Security::ToGeneralizedTimeString(*asnTime2));
 }
 #endif // USE_OPENSSL
 

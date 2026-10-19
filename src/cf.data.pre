@@ -2615,6 +2615,13 @@ DOC_START
 			certificate equals lifetime of the CA certificate. If
 			generated certificate is selfsigned lifetime is three
 			years.
+
+			Generated certificate properties can be fine-tuned using the
+			sslproxy_cert_adapt directive. The sslcrtd_program directive can
+			be used to offload certificate generation to a helper. Identically
+			configured independent Squid instances should generate and use the
+			same certificates at any given time.
+
 			This option is enabled by default when ssl-bump is used.
 			See the ssl-bump option above for more information.
 
@@ -3641,15 +3648,33 @@ DOC_START
 
 		This adaptation algorithm requires OpenSSL v1.0.0 or later.
 
+	   setRepeatingValidityRange[{range}]
+
+		Automatically selects the "Not Before" and "Not After" validity times of
+		the generated certificate to satisfy the configured validity range while
+		leaving a comfortable validity margin from the current time to avoid
+		dangerous "not yet valid" and "already expired" race conditions with
+		client clocks. The selection is made whenever a generated certificate is
+		needed. As time passes, Squid selects new "Not Before" and "Not After"
+		values, generating new certificates to maintain those safety margins.
+
+		The optional `{range}` parameter uses `{<time><time-unit>}` format. When
+		omitted, Squid uses a reasonable default that may change with Squid
+		versions. For example, this version uses the default `range` value of
+		`46days` that corresponds to the maximum validity period in CA/Browser
+		Forum's "Baseline Requirements for the Issuance and Management of
+		Publicly‐Trusted TLS Server Certificates" (v2.2.8 dated 2026-06-16) for
+		certificates issued on or after 2029‐03‐15.
+
 	This clause only supports fast acl types.
 
 	Algorithm rules are checked in configuration order. When all ACLs of an
-	algorithm rule match, Squid uses the corresponding adaptation algorithm for
-	certificate generation and silently ignores all the subsequent rules with
-	the same algorithm. Furthermore, after a setValidAfter or setValidBefore
-	rule match, Squid ignores all subsequent setValidityRange rules. And vice
-	versa: After a setValidityRange rule match, Squid ignores all subsequent
-	setValidAfter and setValidBefore rules.
+	algorithm rule match, Squid uses the corresponding adaptation algorithm
+	for certificate generation and silently ignores all the subsequent rules
+	with the same algorithm. Furthermore, Squid ignores all rules that could
+	alter the decision made by a previously matched rule. For example, after a
+	setValidAfter rule match, Squid ignores all subsequent setValidAfter,
+	setValidityRange, and setRepeatingValidityRange rules.
 
 	If no rules match, the default mimicking action takes place.
 
