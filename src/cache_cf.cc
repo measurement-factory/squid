@@ -4370,7 +4370,7 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
             // after 2029‐03‐15 SHOULD NOT have a Validity Period greater than
             // 46 days and MUST NOT have a Validity Period greater than 47 days.
             // https://cabforum.org/working-groups/server/baseline-requirements/documents/
-            param = "46";
+            param = "46days";
         }
 
         ca->param = xstrdup(param);
