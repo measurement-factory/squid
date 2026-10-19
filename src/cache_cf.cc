@@ -4349,7 +4349,7 @@ static void parse_sslproxy_cert_adapt(sslproxy_cert_adapt **cert_adapt)
         // TODO: Use Tokenizer after upgrading sslproxy_cert_adapt from a POD.
         if (const auto comma = strchr(param, ',')) {
             ca->param = xstrdup(param);
-            ca->validityRangeFrom = Security::ParseTime(SBuf(param, comma - param + 1), "'from' parameter of setValidityRange algorithm");
+            ca->validityRangeFrom = Security::ParseTime(SBuf(param, comma - param), "'from' parameter of setValidityRange algorithm");
             ca->validityRangeTo = Security::ParseTime(SBuf(comma + 1), "'to' parameter of setValidityRange algorithm");
         } else {
             reject("setValidityRange is missing a comma between {from,to} parameters", param);
