@@ -3648,22 +3648,21 @@ DOC_START
 
 		This adaptation algorithm requires OpenSSL v1.0.0 or later.
 
-	   setRepeatingValidityRange{days}
+	   setRepeatingValidityRange{[range]}
 
-		Automatically selects the "Not Before" and "Not After" validity times
-		of the generated certificate to match the configured validity range
-		(in days) while leaving a comfortable validity margin from the current
-		time to avoid dangerous "not yet valid" and "already expired" race
-		conditions with client clocks.
+		Automatically selects the "Not Before" and "Not After" validity times of
+		the generated certificate to match the configured validity range while
+		leaving a comfortable validity margin from the current time to avoid
+		dangerous "not yet valid" and "already expired" race conditions with
+		client clocks.
 
-		The optional `days` parameter is a positive integer that specifies the
-		number of 86,400-second days in the generated certificate validity
-		period. When omitted, Squid uses a reasonable default that may change
-		with Squid versions. For example, this version uses a default range of
-		46 days that corresponds to the maximum validity period in CA/Browser
-		Forum's "Baseline Requirements for the Issuance and Management of
-		Publicly‐Trusted TLS Server Certificates" (v2.2.8 dated 2026-06-16)
-		for certificates issued on or after 2029‐03‐15.
+		The optional `range` parameter uses `<time><time-unit>` format. When
+		omitted, Squid uses a reasonable default that may change with Squid
+		versions. For example, this version uses the default range of `46days`
+		that corresponds to the maximum validity period in CA/Browser Forum's
+		"Baseline Requirements for the Issuance and Management of Publicly‐Trusted
+		TLS Server Certificates" (v2.2.8 dated 2026-06-16) for certificates issued
+		on or after 2029‐03‐15.
 
 	This clause only supports fast acl types.
 
