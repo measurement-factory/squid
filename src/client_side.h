@@ -375,6 +375,9 @@ public:
     /// they need from the ACLFilledChecklist::conn() without filling/copying.
     void fillConnectionLevelDetails(ACLFilledChecklist &) const;
 
+    /// \sa terminateAll()
+    void doTerminateAll(const Error &e, const LogTagsErrors &tags) { terminateAll(e, tags); }
+
     // Exposed to be accessible inside the ClientHttpRequest constructor.
     // TODO: Remove. Make sure there is always a suitable ALE instead.
     /// a problem that occurred without a request (e.g., while parsing headers)

@@ -379,8 +379,22 @@ clientReplyContext::sendClientUpstreamResponse(const StoreIOBuffer &upstreamResp
 void
 clientReplyContext::HandleIMSReply(void *data, StoreIOBuffer result)
 {
-    clientReplyContext *context = (clientReplyContext *)data;
-    context->handleIMSReply(result);
+    auto context = static_cast <clientReplyContext *>(data);
+    // TODO: add exception protection to other STCB callbacks.
+    try {
+        cbdataReference(context->http);
+        context->handleIMSReply(result);
+    } catch (...) {
+        debugs(88, 2, "Failed to process an IMS reply: " << CurrentException);
+        if (cbdataReferenceValid(context->http)) {
+            if (auto conn = context->http->getConn()) {
+                LogTagsErrors lte;
+                lte.aborted = true;
+                conn->doTerminateAll(ERR_CANNOT_FORWARD, lte);
+            }
+        }
+    }
+    cbdataReferenceDone(context->http);
 }
 
 void

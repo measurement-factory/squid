@@ -711,15 +711,23 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
         }
     } catch (...) {
         debugs(20, DBG_IMPORTANT, "ERROR: Failed to update a cached response: " << CurrentException);
-        updateFinished(*old, e304, Ipc::StoreMapAnchor::uFailed);
+        updateFinished(*old, e304);
         return false;
     }
 
-    if (sharedMemStore && old->mem_status == IN_MEMORY && !EBIT_TEST(old->flags, ENTRY_SPECIAL))
+    bool needFinishUpdating = true;
+    if (sharedMemStore && old->mem_status == IN_MEMORY && !EBIT_TEST(old->flags, ENTRY_SPECIAL)) {
         sharedMemStore->updateHeaders(old, e304);
+        needFinishUpdating = false;
+    }
 
-    if (old->swap_dirn > -1)
+    if (old->swap_dirn > -1) {
         disks->updateHeaders(old, e304);
+        needFinishUpdating = false;
+    }
+
+    if (needFinishUpdating)
+        updateFinished(*old, e304, Ipc::StoreMapAnchor::uApplied);
 
     return true;
 }
@@ -805,7 +813,7 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 
     if (transients->isReader(*collapsed) && collapsed->mem_obj->xitTable.collapsed) {
         debugs(20, 5, "revalidated " << *collapsed << " status=" << entryStatus.updateStatus);
-        if (entryStatus.updateStatus != Ipc::StoreMapAnchor::uNone) {
+        if (entryStatus.updateStatus == Ipc::StoreMapAnchor::uApplied || !entryStatus.hasWriter) {
             collapsed->setCollapsingRequirement(false);
             if (entryStatus.updateStatus != Ipc::StoreMapAnchor::uApplied)
                 collapsed->abort();
@@ -928,9 +936,13 @@ void
 Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
 {
     if (e.hasTransients()) {
-        transients->refreshEntry(e);
-        if (e304.isSmpCollapsedRevalidationInitiator())
-            transients->setUpdateStatus(e304.mem_obj->xitTable, updateStatus);
+        if (updateStatus == Ipc::StoreMapAnchor::uApplied && e.store_status == STORE_OK)
+            transients->refreshEntry(e);
+
+        if (!e304.isSmpCollapsedRevalidationInitiator())
+            return;
+
+        transients->setUpdateStatus(e304.mem_obj->xitTable, updateStatus);
     }
 }
 

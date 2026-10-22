@@ -83,8 +83,7 @@ public:
     std::atomic<uint8_t> writerHalted;
 
     /// Whether the collapsed entry that is being revalidated was successfully updated (uApdated)
-    /// or not (uFailed).
-    enum UpdateStatus { uNone, uApplied, uFailed};
+    enum UpdateStatus { uNone, uApplied};
     /// the status of the collapsed revalidation entry
     std::atomic<UpdateStatus> updateStatus;
 
