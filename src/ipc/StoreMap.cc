@@ -368,7 +368,7 @@ Ipc::StoreMap::abortUpdating(Update &update)
 {
     const sfileno fileno = update.stale.fileNo;
     debugs(54, 5, "aborting entry " << fileno << " for updating " << path);
-    Store::Root().updateFinished(*update.entry, *update.entry304, Ipc::StoreMapAnchor::uFailed);
+    Store::Root().updateFinished(*update.entry, *update.entry304);
     if (update.stale) {
         AssertFlagIsSet(update.stale.anchor->lock.updating);
         update.stale.anchor->lock.unlockHeaders();

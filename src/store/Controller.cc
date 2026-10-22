@@ -711,7 +711,7 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
         }
     } catch (...) {
         debugs(20, DBG_IMPORTANT, "ERROR: Failed to update a cached response: " << CurrentException);
-        updateFinished(*old, e304, Ipc::StoreMapAnchor::uFailed);
+        updateFinished(*old, e304);
         return false;
     }
 
@@ -813,7 +813,7 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 
     if (transients->isReader(*collapsed) && collapsed->mem_obj->xitTable.collapsed) {
         debugs(20, 5, "revalidated " << *collapsed << " status=" << entryStatus.updateStatus);
-        if (entryStatus.updateStatus != Ipc::StoreMapAnchor::uNone) {
+        if (entryStatus.updateStatus == Ipc::StoreMapAnchor::uApplied || !entryStatus.hasWriter) {
             collapsed->setCollapsingRequirement(false);
             if (entryStatus.updateStatus != Ipc::StoreMapAnchor::uApplied)
                 collapsed->abort();
