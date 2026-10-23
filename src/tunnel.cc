@@ -56,6 +56,13 @@
 #include "DelayId.h"
 #endif
 
+#if USE_ADAPTATION
+#include "adaptation/AccessCheck.h"
+#include "adaptation/Answer.h"
+#include "adaptation/Config.h"
+#include "adaptation/Iterator.h"
+#endif
+
 #include <climits>
 #include <cerrno>
 
@@ -282,7 +289,30 @@ private:
     /// packed PROXY protocol header that we need to send (or nil)
     std::optional<SBuf> proxyProtocolHeader;
 
+#if USE_ADAPTATION
+
+    // TODO: If possible, move/merge adaptationAccessCheckPendingReqmod and
+    // adaptationAccessCheckPendingRespmod into/as
+    // TunnelStateData::Connection::adaptationAccessCheckPending.
+
+    /// whether we are waiting for the REQMOD adaptation_access check to complete
+    bool adaptationAccessCheckPendingReqmod = false;
+
+    /// whether we are waiting for the RESPMOD adaptation_access check to complete
+    bool adaptationAccessCheckPendingRespmod = false;
+
+#endif /* USE_ADAPTATION */
+
 public:
+    /* These methods will become private when their legacy callers become methods themselves */
+
+#if USE_ADAPTATION
+
+    /// Starts deciding whether to send tunnel bytes to adaptation services.
+    void startAdaptationAccessCheck();
+
+#endif /* USE_ADAPTATION */
+
     bool keepGoingAfterRead(size_t len, Comm::Flag errcode, int xerrno, Connection &from, Connection &to);
     void copy(size_t len, Connection &from, Connection &to, IOCB *);
     void readServer(char *buf, size_t len, Comm::Flag errcode, int xerrno);
@@ -997,6 +1027,10 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
     *tunnelState->status_ptr = Http::scOkay;
     if (cbdataReferenceValid(tunnelState)) {
 
+#if USE_ADAPTATION
+        tunnelState->startAdaptationAccessCheck();
+#endif
+
         // Shovel any payload already pushed into reply buffer by the server response
         if (!tunnelState->server.len)
             tunnelState->copyServerBytes();
@@ -1014,6 +1048,33 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
         tunnelState->copyClientBytes();
     }
 }
+
+#if USE_ADAPTATION
+
+void
+TunnelStateData::startAdaptationAccessCheck()
+{
+    debugs(26, 7, "appliesToTunnels=" << Adaptation::Config::appliesToTunnels);
+    if (!Adaptation::Config::appliesToTunnels)
+        return;
+
+    // TODO: See how ClientHttpRequest::doCallouts() does it.
+    Assure(!adaptationAccessCheckPendingReqmod);
+    adaptationAccessCheckPendingReqmod = Adaptation::AccessCheck::Start(
+        Adaptation::methodReqmod, Adaptation::pointPreCache, ...);
+    debugs(26, 3, "adaptationAccessCheckPendingReqmod=" << adaptationAccessCheckPendingReqmod);
+
+    // TODO: See how Client::adaptOrFinalizeReply() does it.
+    Assure(!adaptationAccessCheckPendingRespmod);
+    adaptationAccessCheckPendingRespmod = Adaptation::AccessCheck::Start(
+        Adaptation::methodRespmod, Adaptation::pointPreCache, ...);
+    debugs(26, 3, "adaptationAccessCheckPendingRespmod=" << adaptationAccessCheckPendingRespmod);
+
+    // TODO: Delay writing while the corresponding adaptationAccessCheckPendingReqmod is true.
+    // TODO: Check whether we have a timeout to avoid getting stuck while waiting for those two pending checks.
+}
+
+#endif /* USE_ADAPTATION */
 
 /**
  * All the pieces we need to write to client and/or server connection
