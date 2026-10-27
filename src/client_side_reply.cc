@@ -390,9 +390,8 @@ clientReplyContext::HandleIMSReply(void *data, StoreIOBuffer result)
             debugs(88, 2, "Failed to process an IMS reply: " << CurrentException);
             if (cbdataReferenceValid(conn) && cbdataReferenceValid(http)) {
                 LogTagsErrors lte;
-                auto err = ErrorState(ERR_CANNOT_FORWARD, Http::scInternalServerError, http->request, http->al);
                 static const auto d = MakeNamedErrorDetail("IMS_REPLY_ERROR");
-                err.detailError(d);
+                auto err = Error(ERR_CANNOT_FORWARD, d);
                 conn->doTerminateAll(err, lte);
             }
         }
