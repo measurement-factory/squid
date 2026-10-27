@@ -289,15 +289,15 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
                          map->writeableEntry(idx) : map->readableEntry(idx);
     entryStatus.hasWriter = anchor.writing();
     entryStatus.waitingToBeFreed = anchor.waitingToBeFreed;
-    entryStatus.updateStatus = anchor.updateStatus;
+    entryStatus.writerUpdateCompleted = anchor.writerUpdateCompleted;
 }
 
 void
-Transients::setUpdateStatus(const MemObject::XitTable &xitTable, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
+Transients::updateCompleted(const MemObject::XitTable &xitTable)
 {
     const auto &anchor = xitTable.io == Store::ioWriting ? map->writeableEntry(xitTable.index) : map->readableEntry(xitTable.index);
-    if (anchor.updateStatus == Ipc::StoreMapAnchor::uNone) {
-        map->setUpdateStatus(xitTable.index, updateStatus);
+    if (!anchor.writerUpdateCompleted) {
+        map->updateCompleted(xitTable.index);
         CollapsedForwarding::Broadcast(xitTable.index, false);
         return;
     }
@@ -364,22 +364,23 @@ Transients::evictIfFound(const cache_key *key)
 }
 
 void
-Transients::disconnect(Store::CollapsedEntryTransientsState &state)
+Transients::disconnect(MemObject::XitTable &xitTable)
 {
     assert(map);
-    if (state.xitTable.io == Store::ioWriting) {
+    Assure(xitTable.index >= 0);
+    if (xitTable.io == Store::ioWriting) {
         // completeWriting() was not called, so there could be an active
         // Store writer out there, but we should not abortWriting() here
         // because another writer may have succeeded, making readers happy.
         // If none succeeded, the readers will notice the lack of writers.
-        map->closeForWriting(state.xitTable.index);
-        CollapsedForwarding::Broadcast(state.xitTable.index, false);
+        map->closeForWriting(xitTable.index);
+        CollapsedForwarding::Broadcast(xitTable.index, false);
     } else {
-        assert(state.xitTable.io == Store::ioReading);
-        map->closeForReadingAndFreeIdle(state.xitTable.index);
+        assert(xitTable.io == Store::ioReading);
+        map->closeForReadingAndFreeIdle(xitTable.index);
     }
-    locals->at(state.xitTable.index) = nullptr;
-    state.xitTable.close();
+    locals->at(xitTable.index) = nullptr;
+    xitTable.close();
 }
 
 void

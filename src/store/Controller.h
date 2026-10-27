@@ -116,7 +116,6 @@ public:
 
     /// disassociates the entry from the intransit table
     void transientsDisconnect(StoreEntry &);
-    void transientsDisconnect(Store::CollapsedEntryTransientsState &);
 
     /// disassociates the entry from the memory cache, preserving cached data
     void memoryDisconnect(StoreEntry &);
@@ -124,12 +123,15 @@ public:
     /// \returns an iterator for all Store entries
     StoreSearch *search();
 
-    /// adjusts the shared transients entry after the 304 update has been successfully applied (or failed)
-    void updateFinished(StoreEntry &e, const StoreEntry &e304, Ipc::StoreMapAnchor::UpdateStatus = Ipc::StoreMapAnchor::uNone);
-
-    /// adjusts the 'updateStatus' shared transients entry state after the entry has been
-    /// either updated by a 304 or overwritten by a cacheable response
-    void setUpdateStatus(const MemObject::XitTable &, Ipc::StoreMapAnchor::UpdateStatus = Ipc::StoreMapAnchor::uNone);
+    /// adjusts the shared transients entry after the 304 update has been successfully applied
+    /// and notifies the shared collapsed revalidation readers that the entry is ready
+    void updateCompleted(StoreEntry &e, const StoreEntry &e304);
+    /// notifies the shared collapsed revalidation readers that the update failed
+    /// (i.e., there is no any entry they could attach to)
+    void updateDismissed(const StoreEntry &e304);
+    /// notifies the shared collapsed revalidation readers that the entry is ready
+    /// and disconnects from the intransit table
+    void completeUpdateAndDisconnect(MemObject::XitTable &);
 
     /// whether there are any SMP-aware storages
     static bool SmpAware();
