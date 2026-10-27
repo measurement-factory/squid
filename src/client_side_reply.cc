@@ -381,9 +381,9 @@ clientReplyContext::HandleIMSReply(void *data, StoreIOBuffer result)
 {
     if (auto context = static_cast <clientReplyContext *>(data)) {
         // TODO: add exception protection to other STCB callbacks.
-    	auto http = cbdataReferenceValid(context->http) ? context->http : nullptr;
-    	auto conn = http ? http->getConn() : nullptr;
-  	    cbdataReference(conn);
+        auto http = cbdataReferenceValid(context->http) ? context->http : nullptr;
+        auto conn = http ? http->getConn() : nullptr;
+        cbdataReference(conn);
         try {
             context->handleIMSReply(result);
         } catch (...) {

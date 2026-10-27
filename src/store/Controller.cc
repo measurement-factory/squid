@@ -730,7 +730,7 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
     }
 
     if (needFinishUpdating)
-	updateCompleted(*old, e304);
+        updateCompleted(*old, e304);
 
     return true;
 }

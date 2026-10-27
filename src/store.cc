@@ -623,7 +623,7 @@ StoreEntry::setPrivateKey(const bool shareable, const bool permanent, const Evic
         // revalidation (if any) was unsuccessful if
         // we got a private non-304 entry and/or the client that initiated this transaction is gone
         if (!notModified || storePendingNClients(this) == 0) {
-		Store::Root().updateDismissed(*this);
+            Store::Root().updateDismissed(*this);
         }
     }
 
