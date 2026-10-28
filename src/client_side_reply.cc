@@ -379,23 +379,20 @@ clientReplyContext::sendClientUpstreamResponse(const StoreIOBuffer &upstreamResp
 void
 clientReplyContext::HandleIMSReply(void *data, StoreIOBuffer result)
 {
-    if (auto context = static_cast <clientReplyContext *>(data)) {
-        // TODO: add exception protection to other STCB callbacks.
-        auto http = cbdataReferenceValid(context->http) ? context->http : nullptr;
-        auto conn = http ? http->getConn() : nullptr;
-        cbdataReference(conn);
-        try {
-            context->handleIMSReply(result);
-        } catch (...) {
-            debugs(88, 2, "Failed to process an IMS reply: " << CurrentException);
-            if (cbdataReferenceValid(conn) && cbdataReferenceValid(http)) {
-                LogTagsErrors lte;
-                static const auto d = MakeNamedErrorDetail("IMS_REPLY_ERROR");
-                auto err = Error(ERR_CANNOT_FORWARD, d);
-                conn->doTerminateAll(err, lte);
-            }
+    auto context = static_cast <clientReplyContext *>(data);
+    // TODO: add exception protection to other STCB callbacks.
+    auto http = cbdataReferenceValid(context->http) ? context->http : nullptr;
+    CbcPointer<ConnStateData> conn(http ? http->getConn() : nullptr);
+    try {
+        context->handleIMSReply(result);
+    } catch (...) {
+         debugs(88, 2, "Failed to process an IMS reply: " << CurrentException);
+         if (auto c = conn.get()) {
+            LogTagsErrors lte;
+            static const auto d = MakeNamedErrorDetail("IMS_REPLY_ERROR");
+            auto err = Error(ERR_CANNOT_FORWARD, d);
+            c->doTerminateAll(err, lte);
         }
-        cbdataReferenceDone(conn);
     }
 }
 
