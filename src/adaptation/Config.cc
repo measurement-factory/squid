@@ -30,7 +30,7 @@ int Adaptation::Config::service_iteration_limit = 16;
 int Adaptation::Config::send_client_ip = false;
 int Adaptation::Config::send_username = false;
 int Adaptation::Config::use_indirect_client = true;
-int Adaptation::Config::appliesToTunnels = true;
+int Adaptation::Config::appliesToTunnels = false;
 
 static const char *protectedFieldNamesRaw[] = {
     "Allow",
