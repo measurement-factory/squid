@@ -125,13 +125,12 @@ public:
 
     /// adjusts the shared transients entry after the 304 update has been successfully applied
     /// and notifies the shared collapsed revalidation readers that the entry is ready
-    void updateCompleted(StoreEntry &e, const StoreEntry &e304);
-    /// notifies the shared collapsed revalidation readers that the update failed
-    /// (i.e., there is no any entry they could attach to)
-    void updateDismissed(const StoreEntry &e304);
+    void updateApplied(StoreEntry &e, const StoreEntry &e304);
     /// notifies the shared collapsed revalidation readers that the entry is ready
     /// and disconnects from the intransit table
     void completeUpdateAndDisconnect(MemObject::XitTable &);
+    /// marks the shared transients entry with the "has updater" status
+    void updateStarted(const StoreEntry &e);
 
     /// whether there are any SMP-aware storages
     static bool SmpAware();

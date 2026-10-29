@@ -289,24 +289,49 @@ Transients::status(const StoreEntry &entry, Transients::EntryStatus &entryStatus
                          map->writeableEntry(idx) : map->readableEntry(idx);
     entryStatus.hasWriter = anchor.writing();
     entryStatus.waitingToBeFreed = anchor.waitingToBeFreed;
-    entryStatus.writerUpdateCompleted = anchor.writerUpdateCompleted;
+    entryStatus.hasUpdater = anchor.hasUpdater;
+    entryStatus.writerUpdateApplied = anchor.writerUpdateApplied;
 }
 
 void
-Transients::updateCompleted(const MemObject::XitTable &xitTable)
+Transients::updateApplied(const MemObject::XitTable &xitTable)
 {
     const auto &anchor = xitTable.io == Store::ioWriting ? map->writeableEntry(xitTable.index) : map->readableEntry(xitTable.index);
-    if (!anchor.writerUpdateCompleted) {
-        map->updateCompleted(xitTable.index);
+    if (!anchor.writerUpdateApplied) {
+        map->updateApplied(xitTable.index);
         CollapsedForwarding::Broadcast(xitTable.index, false);
         return;
     }
 }
 
 void
+Transients::updateStarted(const StoreEntry &entry)
+{
+    Assure(entry.hasTransients());
+    Assure(isWriter(entry));
+    const auto &xitTable = entry.mem_obj->xitTable;
+    const auto &anchor = map->writeableEntry(xitTable.index);
+    if (!anchor.hasUpdater) {
+        map->setUpdater(xitTable.index, true);
+        CollapsedForwarding::Broadcast(entry);
+    }
+}
+
+void
+Transients::updateFinished(const MemObject::XitTable &xitTable)
+{
+    Assure(xitTable.index >= 0);
+    const auto &anchor = xitTable.io == Store::ioWriting ? map->writeableEntry(xitTable.index) : map->readableEntry(xitTable.index);
+    if (anchor.hasUpdater) {
+        map->setUpdater(xitTable.index, false);
+        CollapsedForwarding::Broadcast(xitTable.index, false);
+    }
+}
+
+void
 Transients::refreshEntry(StoreEntry &e)
 {
-	Assure(e.store_status == STORE_OK);
+    Assure(e.store_status == STORE_OK);
 
     evictCached(e);
     const auto key = e.calcPublicKey(ksDefault);
@@ -368,6 +393,7 @@ Transients::disconnect(MemObject::XitTable &xitTable)
 {
     assert(map);
     Assure(xitTable.index >= 0);
+    updateFinished(xitTable);
     if (xitTable.io == Store::ioWriting) {
         // completeWriting() was not called, so there could be an active
         // Store writer out there, but we should not abortWriting() here
@@ -390,6 +416,7 @@ Transients::disconnect(StoreEntry &entry)
     if (entry.hasTransients()) {
         auto &xitTable = entry.mem_obj->xitTable;
         assert(map);
+        updateFinished(xitTable);
         if (isWriter(entry)) {
             // completeWriting() was not called, so there could be an active
             // Store writer out there, but we should not abortWriting() here

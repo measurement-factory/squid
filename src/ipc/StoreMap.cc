@@ -66,11 +66,19 @@ Ipc::StoreMap::StoreMap(const SBuf &aPath): cleaner(nullptr), path(aPath),
 }
 
 void
-Ipc::StoreMap::updateCompleted(const sfileno fileno)
+Ipc::StoreMap::setUpdater(const sfileno fileno, bool on)
+{
+    Anchor &inode = anchorAt(fileno);
+    Assure(inode.writing() || inode.reading());
+    inode.hasUpdater = on;
+}
+
+void
+Ipc::StoreMap::updateApplied(const sfileno fileno)
 {
     Anchor &inode = anchorAt(fileno);
     assert(inode.writing() || inode.reading());
-    inode.writerUpdateCompleted = true;
+    inode.writerUpdateApplied = true;
 }
 
 int
@@ -368,7 +376,6 @@ Ipc::StoreMap::abortUpdating(Update &update)
 {
     const sfileno fileno = update.stale.fileNo;
     debugs(54, 5, "aborting entry " << fileno << " for updating " << path);
-    Store::Root().updateDismissed(*update.entry304);
     if (update.stale) {
         AssertFlagIsSet(update.stale.anchor->lock.updating);
         update.stale.anchor->lock.unlockHeaders();
@@ -776,7 +783,7 @@ Ipc::StoreMap::closeForUpdating(Update &update)
     closeForReading(update.fresh.fileNo);
     update.fresh = Update::Edition();
 
-    Store::Root().updateCompleted(*update.entry, *update.entry304);
+    Store::Root().updateApplied(*update.entry, *update.entry304);
 
     debugs(54, 5, "closed entry " << updateSaved.stale.fileNo << " of " << *updateSaved.entry <<
            " named " << updateSaved.stale.name << " for updating " << path <<
@@ -1044,7 +1051,7 @@ Ipc::StoreMap::sliceAt(const SliceId sliceId) const
 
 /* Ipc::StoreMapAnchor */
 
-Ipc::StoreMapAnchor::StoreMapAnchor(): writerUpdateCompleted(false), start(0), splicingPoint(-1)
+Ipc::StoreMapAnchor::StoreMapAnchor(): hasUpdater(false), writerUpdateApplied(false), start(0), splicingPoint(-1)
 {
     // keep in sync with rewind()
 }
@@ -1117,7 +1124,8 @@ Ipc::StoreMapAnchor::rewind()
     basics.clear();
     waitingToBeFreed = false;
     writerHalted = false;
-    writerUpdateCompleted = false;
+    hasUpdater = false;
+    writerUpdateApplied = false;
     // but keep the lock
 }
 

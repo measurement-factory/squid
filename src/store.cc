@@ -618,15 +618,6 @@ StoreEntry::setPrivateKey(const bool shareable, const bool permanent, const Evic
     if (EBIT_TEST(flags, KEY_PRIVATE))
         return;
 
-    if (isSmpCollapsedRevalidationInitiator()) {
-        const bool notModified = mem_obj->freshestReply().sline.status() == Http::scNotModified;
-        // revalidation (if any) was unsuccessful if
-        // we got a private non-304 entry and/or the client that initiated this transaction is gone
-        if (!notModified || storePendingNClients(this) == 0) {
-            Store::Root().updateDismissed(*this);
-        }
-    }
-
     if (key) {
         if (evictCached == EvictCached::on)
             Store::Root().evictCached(*this); // all caches/workers will know

@@ -312,6 +312,7 @@ clientReplyContext::processExpired()
                 Store::Root().allowCollapsing(entry, http->request->flags, http->request->method)) {
             debugs(88, 5, "allow other revalidation requests to collapse on " << *entry);
             collapsedRevalidation = crInitiator;
+            Store::Root().updateStarted(*entry);
         } else {
             collapsedRevalidation = crNone;
         }

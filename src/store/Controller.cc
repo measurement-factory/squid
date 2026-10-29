@@ -9,7 +9,6 @@
 /* DEBUG: section 20    Store Controller */
 
 #include "squid.h"
-#include "CollapsedForwarding.h"
 #include "mem_node.h"
 #include "MemStore.h"
 #include "SquidConfig.h"
@@ -631,7 +630,7 @@ void
 Store::Controller::completeUpdateAndDisconnect(MemObject::XitTable &xitTable)
 {
     if (transients) {
-        transients->updateCompleted(xitTable);
+        transients->updateApplied(xitTable);
         transients->disconnect(xitTable);
     }
 }
@@ -709,12 +708,10 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
     try {
         if (!old->updateOnNotModified(e304)) {
             debugs(20, 5, "updated nothing in " << *old << " with " << e304);
-            updateDismissed(e304);
             return true;
         }
     } catch (...) {
         debugs(20, DBG_IMPORTANT, "ERROR: Failed to update a cached response: " << CurrentException);
-        updateDismissed(e304);
         return false;
     }
 
@@ -730,7 +727,7 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
     }
 
     if (needFinishUpdating)
-        updateCompleted(*old, e304);
+        updateApplied(*old, e304);
 
     return true;
 }
@@ -816,11 +813,13 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 
     assert(transients->isReader(*collapsed));
 
-    if (collapsed->mem_obj->xitTable.collapsed && !entryStatus.hasWriter) {
-        // we are a collapsed revalidation reader and the collapsed revalidation writer has finished writing
-        debugs(20, 5, "revalidated " << *collapsed << " writerUpdateFinished=" << entryStatus.writerUpdateCompleted);
+    debugs(20, 5, "hasUpdater " << entryStatus.hasUpdater);
+
+    if (collapsed->mem_obj->xitTable.collapsed && !entryStatus.hasUpdater) {
+        // we are a collapsed revalidation reader and the collapsed revalidation updater has completed its work
+        debugs(20, 5, "revalidated " << *collapsed << " writerUpdateApplied=" << entryStatus.writerUpdateApplied);
         collapsed->setCollapsingRequirement(false);
-        if (!entryStatus.writerUpdateCompleted) {
+        if (!entryStatus.writerUpdateApplied) {
             // writer failed to update for some reason
             collapsed->abort();
         }
@@ -937,7 +936,7 @@ Store::Controller::anchorToCache(StoreEntry &entry)
 }
 
 void
-Store::Controller::updateCompleted(StoreEntry &e, const StoreEntry &e304)
+Store::Controller::updateApplied(StoreEntry &e, const StoreEntry &e304)
 {
     if (e.hasTransients()) {
         if (e.store_status == STORE_OK)
@@ -946,15 +945,15 @@ Store::Controller::updateCompleted(StoreEntry &e, const StoreEntry &e304)
         if (!e304.isSmpCollapsedRevalidationInitiator())
             return;
 
-        transients->updateCompleted(e304.mem_obj->xitTable);
+        transients->updateApplied(e304.mem_obj->xitTable);
     }
 }
 
 void
-Store::Controller::updateDismissed(const StoreEntry &e304)
+Store::Controller::updateStarted(const StoreEntry &e)
 {
-    if (e304.hasTransients())
-        CollapsedForwarding::Broadcast(e304.mem_obj->xitTable.index, false);
+    if (e.hasTransients())
+        transients->updateStarted(e);
 }
 
 bool
