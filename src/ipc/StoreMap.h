@@ -82,11 +82,13 @@ public:
     /// whether StoreMap::abortWriting() was called for a read-locked entry
     std::atomic<uint8_t> writerHalted;
 
-    /// Whether the collapsed entry that is being revalidated was successfully updated (uApdated)
-    /// or not (uFailed).
-    enum UpdateStatus { uNone, uApplied, uFailed};
-    /// the status of the collapsed revalidation entry
-    std::atomic<UpdateStatus> updateStatus;
+    /// true while there is a collapsed writer revalidation entry associated
+    /// with this shared entry
+    std::atomic<uint8_t> hasUpdater;
+    /// true if the writer successfully finished update of a collapsed revalidation entry
+    /// false if there is no entry update or the writer failed to finish update of a collapsed
+    /// revalidation entry
+    std::atomic<uint8_t> writerUpdateApplied;
 
     // fields marked with [app] can be modified when appending-while-reading
     // fields marked with [update] can be modified when updating-while-reading
@@ -262,8 +264,12 @@ public:
     /// Comparison may be inaccurate unless the caller is a lock holder.
     int compareVersions(const sfileno oldFileno, time_t newVersion) const;
 
-    /// mark the updating entry after it has been used for update
-    void setUpdateStatus(sfileno, Ipc::StoreMapAnchor::UpdateStatus);
+    /// associates or disassociates the shared updating entry with a
+    /// collapsed revalidaton initiator
+    void setUpdater(sfileno, bool on);
+    /// mark the shared updating entry after the update has been successfully applied
+    /// to the entry being updated
+    void updateApplied(sfileno);
 
     /// finds, locks, and returns an anchor for an empty key position,
     /// erasing the old entry (if any)

@@ -627,10 +627,12 @@ Store::Controller::transientsDisconnect(StoreEntry &e)
 }
 
 void
-Store::Controller::transientsDisconnect(Store::CollapsedEntryTransientsState &state)
+Store::Controller::completeUpdateAndDisconnect(MemObject::XitTable &xitTable)
 {
-    if (transients)
-        transients->disconnect(state);
+    if (transients) {
+        transients->updateApplied(xitTable);
+        transients->disconnect(xitTable);
+    }
 }
 
 void
@@ -706,20 +708,26 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
     try {
         if (!old->updateOnNotModified(e304)) {
             debugs(20, 5, "updated nothing in " << *old << " with " << e304);
-            updateFinished(*old, e304, Ipc::StoreMapAnchor::uApplied);
             return true;
         }
     } catch (...) {
         debugs(20, DBG_IMPORTANT, "ERROR: Failed to update a cached response: " << CurrentException);
-        updateFinished(*old, e304, Ipc::StoreMapAnchor::uFailed);
         return false;
     }
 
-    if (sharedMemStore && old->mem_status == IN_MEMORY && !EBIT_TEST(old->flags, ENTRY_SPECIAL))
+    bool needFinishUpdating = true;
+    if (sharedMemStore && old->mem_status == IN_MEMORY && !EBIT_TEST(old->flags, ENTRY_SPECIAL)) {
         sharedMemStore->updateHeaders(old, e304);
+        needFinishUpdating = false;
+    }
 
-    if (old->swap_dirn > -1)
+    if (old->swap_dirn > -1) {
         disks->updateHeaders(old, e304);
+        needFinishUpdating = false;
+    }
+
+    if (needFinishUpdating)
+        updateApplied(*old, e304);
 
     return true;
 }
@@ -803,18 +811,19 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
     if (transients->isWriter(*collapsed))
         return; // readers can only change our waitingToBeFreed flag
 
-    if (transients->isReader(*collapsed) && collapsed->mem_obj->xitTable.collapsed) {
-        debugs(20, 5, "revalidated " << *collapsed << " status=" << entryStatus.updateStatus);
-        if (entryStatus.updateStatus != Ipc::StoreMapAnchor::uNone) {
-            collapsed->setCollapsingRequirement(false);
-            if (entryStatus.updateStatus != Ipc::StoreMapAnchor::uApplied)
-                collapsed->abort();
-            collapsed->invokeSmpCollapsedHandlers();
+    assert(transients->isReader(*collapsed));
+
+    if (collapsed->mem_obj->xitTable.collapsed && !entryStatus.hasUpdater) {
+        // we are a collapsed revalidation reader and the collapsed revalidation updater has completed its work
+        debugs(20, 5, "revalidated " << *collapsed << " writerUpdateApplied=" << entryStatus.writerUpdateApplied);
+        collapsed->setCollapsingRequirement(false);
+        if (!entryStatus.writerUpdateApplied) {
+            // writer failed to update for some reason
+            collapsed->abort();
         }
+        collapsed->invokeSmpCollapsedHandlers();
         return;
     }
-
-    assert(transients->isReader(*collapsed));
 
     bool found = false;
     bool inSync = false;
@@ -925,19 +934,24 @@ Store::Controller::anchorToCache(StoreEntry &entry)
 }
 
 void
-Store::Controller::updateFinished(StoreEntry &e, const StoreEntry &e304, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
+Store::Controller::updateApplied(StoreEntry &e, const StoreEntry &e304)
 {
     if (e.hasTransients()) {
-        transients->refreshEntry(e);
-        if (e304.isSmpCollapsedRevalidationInitiator())
-            transients->setUpdateStatus(e304.mem_obj->xitTable, updateStatus);
+        if (e.store_status == STORE_OK)
+            transients->refreshEntry(e);
+
+        if (!e304.isSmpCollapsedRevalidationInitiator())
+            return;
+
+        transients->updateApplied(e304.mem_obj->xitTable);
     }
 }
 
 void
-Store::Controller::setUpdateStatus(const MemObject::XitTable &xitTable, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
+Store::Controller::updateStarted(const StoreEntry &e)
 {
-    transients->setUpdateStatus(xitTable, updateStatus);
+    if (e.hasTransients())
+        transients->updateStarted(e);
 }
 
 bool

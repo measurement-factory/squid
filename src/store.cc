@@ -592,8 +592,7 @@ Store::CollapsedEntryTransientsState::release()
         assert(entry->mem_obj->xitTable.index != xitTable.index);
 
         // notify via the old transients entry about the update
-        Store::Root().setUpdateStatus(xitTable, Ipc::StoreMapAnchor::uApplied);
-        Store::Root().transientsDisconnect(*this);
+        Store::Root().completeUpdateAndDisconnect(xitTable);
         xitTable = MemObject::XitTable();
     }
 }
@@ -618,11 +617,6 @@ StoreEntry::setPrivateKey(const bool shareable, const bool permanent, const Evic
 
     if (EBIT_TEST(flags, KEY_PRIVATE))
         return;
-
-    if (isSmpCollapsedRevalidationInitiator() && mem_obj->freshestReply().sline.status() != Http::scNotModified) {
-        // a private non-304 entry means that revalidation (if any) was unsuccessful
-        Store::Root().setUpdateStatus(mem_obj->xitTable, Ipc::StoreMapAnchor::uFailed);
-    }
 
     if (key) {
         if (evictCached == EvictCached::on)

@@ -312,6 +312,7 @@ clientReplyContext::processExpired()
                 Store::Root().allowCollapsing(entry, http->request->flags, http->request->method)) {
             debugs(88, 5, "allow other revalidation requests to collapse on " << *entry);
             collapsedRevalidation = crInitiator;
+            Store::Root().updateStarted(*entry);
         } else {
             collapsedRevalidation = crNone;
         }
@@ -379,8 +380,21 @@ clientReplyContext::sendClientUpstreamResponse(const StoreIOBuffer &upstreamResp
 void
 clientReplyContext::HandleIMSReply(void *data, StoreIOBuffer result)
 {
-    clientReplyContext *context = (clientReplyContext *)data;
-    context->handleIMSReply(result);
+    auto context = static_cast <clientReplyContext *>(data);
+    // TODO: add exception protection to other STCB callbacks.
+    auto http = cbdataReferenceValid(context->http) ? context->http : nullptr;
+    CbcPointer<ConnStateData> conn(http ? http->getConn() : nullptr);
+    try {
+        context->handleIMSReply(result);
+    } catch (...) {
+         debugs(88, 2, "Failed to process an IMS reply: " << CurrentException);
+         if (auto c = conn.get()) {
+            LogTagsErrors lte;
+            static const auto d = MakeNamedErrorDetail("IMS_REPLY_ERROR");
+            auto err = Error(ERR_CANNOT_FORWARD, d);
+            c->doTerminateAll(err, lte);
+        }
+    }
 }
 
 void

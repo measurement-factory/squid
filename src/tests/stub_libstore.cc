@@ -40,7 +40,7 @@ void Controller::configure() STUB
 void Controller::handleIdleEntry(StoreEntry &) STUB
 void Controller::freeMemorySpace(const int) STUB
 void Controller::memoryOut(StoreEntry &, const bool) STUB
-bool Controller::updateOnNotModified(StoreEntry *, StoreEntry &) STUB
+bool Controller::updateOnNotModified(StoreEntry *, StoreEntry &) noexcept STUB
 bool Controller::allowCollapsing(StoreEntry *, const RequestFlags &, const HttpRequestMethod &) STUB_RETVAL(false)
 void Controller::addReading(StoreEntry *, const cache_key *) STUB
 void Controller::addWriting(StoreEntry *, const cache_key *) STUB
@@ -55,9 +55,9 @@ StoreSearch *Controller::search() STUB_RETVAL(nullptr)
 bool Controller::SmpAware() STUB_RETVAL(false)
 int Controller::store_dirs_rebuilding = 0;
 Controller &Root() STUB_RETREF(Controller)
-void Controller::updateFinished(StoreEntry &, const StoreEntry &, Ipc::StoreMapAnchor::UpdateStatus) STUB
-void Controller::setUpdateStatus(const MemObject::XitTable &, Ipc::StoreMapAnchor::UpdateStatus) STUB;
-void Controller::transientsDisconnect(Store::CollapsedEntryTransientsState&) STUB;
+void Controller::updateApplied(StoreEntry &, const StoreEntry &) STUB
+void Controller::updateStarted(const StoreEntry &e) STUB
+void Controller::completeUpdateAndDisconnect(MemObject::XitTable &) STUB
 }
 
 #include "store/Disk.h"

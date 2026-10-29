@@ -66,11 +66,19 @@ Ipc::StoreMap::StoreMap(const SBuf &aPath): cleaner(nullptr), path(aPath),
 }
 
 void
-Ipc::StoreMap::setUpdateStatus(const sfileno fileno, const Ipc::StoreMapAnchor::UpdateStatus updateStatus)
+Ipc::StoreMap::setUpdater(const sfileno fileno, bool on)
+{
+    Anchor &inode = anchorAt(fileno);
+    Assure(inode.writing() || inode.reading());
+    inode.hasUpdater = on;
+}
+
+void
+Ipc::StoreMap::updateApplied(const sfileno fileno)
 {
     Anchor &inode = anchorAt(fileno);
     assert(inode.writing() || inode.reading());
-    inode.updateStatus = updateStatus;
+    inode.writerUpdateApplied = true;
 }
 
 int
@@ -158,6 +166,14 @@ Ipc::StoreMap::openForWriting(const cache_key *const key, sfileno &fileno)
     }
 
     debugs(54, 5, "replacing stale entry " << currentIdx << " to write " << path);
+
+    // The code below tries to assign a new anchor to get around the stale
+    // entry. In some situations the anchor consumption may increase significantly.
+    // For example, a resource needing revalidation is being slowly stored.
+    // Every new request to the same resource may get another 200 response after
+    // revalidation that deprecates the previous one and thus consumes additional
+    // anchor. N such requests will consume N additional anchors, depleting
+    // the anchors pool and making collisions more likely. TODO: optimize.
 
     const auto staleAnchor = openForReplacingAt(currentIdx, key);
     if (!staleAnchor)
@@ -360,7 +376,6 @@ Ipc::StoreMap::abortUpdating(Update &update)
 {
     const sfileno fileno = update.stale.fileNo;
     debugs(54, 5, "aborting entry " << fileno << " for updating " << path);
-    Store::Root().updateFinished(*update.entry, *update.entry304, Ipc::StoreMapAnchor::uFailed);
     if (update.stale) {
         AssertFlagIsSet(update.stale.anchor->lock.updating);
         update.stale.anchor->lock.unlockHeaders();
@@ -768,7 +783,7 @@ Ipc::StoreMap::closeForUpdating(Update &update)
     closeForReading(update.fresh.fileNo);
     update.fresh = Update::Edition();
 
-    Store::Root().updateFinished(*update.entry, *update.entry304, Ipc::StoreMapAnchor::uApplied);
+    Store::Root().updateApplied(*update.entry, *update.entry304);
 
     debugs(54, 5, "closed entry " << updateSaved.stale.fileNo << " of " << *updateSaved.entry <<
            " named " << updateSaved.stale.name << " for updating " << path <<
@@ -1036,7 +1051,7 @@ Ipc::StoreMap::sliceAt(const SliceId sliceId) const
 
 /* Ipc::StoreMapAnchor */
 
-Ipc::StoreMapAnchor::StoreMapAnchor(): updateStatus(uNone), start(0), splicingPoint(-1)
+Ipc::StoreMapAnchor::StoreMapAnchor(): hasUpdater(false), writerUpdateApplied(false), start(0), splicingPoint(-1)
 {
     // keep in sync with rewind()
 }
@@ -1109,7 +1124,8 @@ Ipc::StoreMapAnchor::rewind()
     basics.clear();
     waitingToBeFreed = false;
     writerHalted = false;
-    updateStatus = uNone;
+    hasUpdater = false;
+    writerUpdateApplied = false;
     // but keep the lock
 }
 
