@@ -813,8 +813,6 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 
     assert(transients->isReader(*collapsed));
 
-    debugs(20, 5, "hasUpdater " << entryStatus.hasUpdater);
-
     if (collapsed->mem_obj->xitTable.collapsed && !entryStatus.hasUpdater) {
         // we are a collapsed revalidation reader and the collapsed revalidation updater has completed its work
         debugs(20, 5, "revalidated " << *collapsed << " writerUpdateApplied=" << entryStatus.writerUpdateApplied);
