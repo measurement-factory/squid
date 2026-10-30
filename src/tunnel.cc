@@ -252,6 +252,11 @@ public:
     void saveError(ErrorState *finalError);
     void sendError(ErrorState *finalError, const char *reason);
 
+#if USE_ADAPTATION
+    // AsyncJob API
+    void callException(const std::exception &) override;
+    
+#endif
 private:
     void usePinned();
 
@@ -309,7 +314,6 @@ private:
     void noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer) override;
     // AsyncJob API
     bool doneAll() const override { return false; }
-    void callException(const std::exception &) override;
 
 #endif /* USE_ADAPTATION */
 
