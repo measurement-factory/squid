@@ -47,7 +47,7 @@ public:
     static int send_client_ip;
     static int send_username;
     static int use_indirect_client;
-    static int appliesToTunnels; //<< adaptation_of_tunnels
+    static int appliesToTunnels; ///<< adaptation_of_tunnels
 
     // Options below are accessed via Icap::TheConfig or Ecap::TheConfig
     // TODO: move ICAP-specific options to Icap::Config and add TheConfig
