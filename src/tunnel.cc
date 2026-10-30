@@ -80,6 +80,9 @@
  * TODO 2: then convert this into a AsyncJob, possibly a child of 'Server'
  */
 class TunnelStateData: public PeerSelectionInitiator
+#if USE_ADAPTATION
+    , public Adaptation::Initiator
+#endif
 {
     CBDATA_CHILD(TunnelStateData);
 
@@ -301,6 +304,13 @@ private:
     /// whether we are waiting for the RESPMOD adaptation_access check to complete
     bool adaptationAccessCheckPendingRespmod = false;
 
+    // Adaptation::Initiator API
+    void noteAdaptationAnswer(const Adaptation::Answer &) override;
+    void noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer) override;
+    // AsyncJob API
+    bool doneAll() const override { return false; }
+    void callException(const std::exception &) override;
+
 #endif /* USE_ADAPTATION */
 
 public:
@@ -441,6 +451,9 @@ guaranteedRequest(const ClientHttpRequest * const cr)
 }
 
 TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
+#if USE_ADAPTATION
+    AsyncJob("TunnelStateData"),
+#endif
     startTime(squid_curtime),
     destinations(new ResolvedPeers()),
     destinationsFound(false),
@@ -1050,7 +1063,6 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
 }
 
 #if USE_ADAPTATION
-
 void
 TunnelStateData::startAdaptationAccessCheck()
 {
@@ -1061,19 +1073,47 @@ TunnelStateData::startAdaptationAccessCheck()
     // TODO: See how ClientHttpRequest::doCallouts() does it.
     Assure(!adaptationAccessCheckPendingReqmod);
     adaptationAccessCheckPendingReqmod = Adaptation::AccessCheck::Start(
-        Adaptation::methodReqmod, Adaptation::pointPreCache, ...);
+        Adaptation::methodReqmod, Adaptation::pointPreCache, request.getRaw(), nullptr, al, this);
     debugs(26, 3, "adaptationAccessCheckPendingReqmod=" << adaptationAccessCheckPendingReqmod);
 
     // TODO: See how Client::adaptOrFinalizeReply() does it.
     Assure(!adaptationAccessCheckPendingRespmod);
     adaptationAccessCheckPendingRespmod = Adaptation::AccessCheck::Start(
-        Adaptation::methodRespmod, Adaptation::pointPreCache, ...);
+        Adaptation::methodRespmod, Adaptation::pointPreCache, request.getRaw(), nullptr, al, this);
     debugs(26, 3, "adaptationAccessCheckPendingRespmod=" << adaptationAccessCheckPendingRespmod);
 
     // TODO: Delay writing while the corresponding adaptationAccessCheckPendingReqmod is true.
     // TODO: Check whether we have a timeout to avoid getting stuck while waiting for those two pending checks.
 }
 
+void
+TunnelStateData::noteAdaptationAnswer(const Adaptation::Answer &)
+{
+    Must(false);
+}
+
+void
+TunnelStateData::noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer group)
+{
+    debugs(26, 3, group << "; pending REQMOD: " << adaptationAccessCheckPendingReqmod
+        << ", RESPMOD: " << adaptationAccessCheckPendingRespmod);
+
+    if (!group) {
+        debugs(85, 3, "no adaptation needed");
+    }
+
+    if (group->method == Adaptation::methodReqmod)
+        adaptationAccessCheckPendingReqmod = false;
+    if (group->method == Adaptation::methodRespmod)
+        adaptationAccessCheckPendingRespmod = false;
+}
+
+void
+TunnelStateData::callException(const std::exception &e)
+{
+    debugs(26, 3, "closing after exception: " << e.what());
+    closeConnections();
+}
 #endif /* USE_ADAPTATION */
 
 /**
