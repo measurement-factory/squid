@@ -60,6 +60,7 @@
 #include "adaptation/AccessCheck.h"
 #include "adaptation/Answer.h"
 #include "adaptation/Config.h"
+#include "adaptation/ServiceGroups.h"
 #include "adaptation/Iterator.h"
 #endif
 
@@ -255,7 +256,7 @@ public:
 #if USE_ADAPTATION
     // AsyncJob API
     void callException(const std::exception &) override;
-    
+
 #endif
 private:
     void usePinned();
@@ -1000,6 +1001,12 @@ TunnelStateData::copyRead(Connection &from, IOCB *completion)
 void
 TunnelStateData::copyClientBytes()
 {
+#if USE_ADAPTATION
+    if (adaptationAccessCheckPendingReqmod) {
+        debugs(26, 5, "waiting for REQMOD adaptation_access check");
+        return;
+    }
+#endif
     if (preReadClientData.length()) {
         size_t copyBytes = preReadClientData.length() > SQUID_TCP_SO_RCVBUF ? SQUID_TCP_SO_RCVBUF : preReadClientData.length();
         memcpy(client.buf, preReadClientData.rawContent(), copyBytes);
@@ -1014,6 +1021,12 @@ TunnelStateData::copyClientBytes()
 void
 TunnelStateData::copyServerBytes()
 {
+#if USE_ADAPTATION
+    if (adaptationAccessCheckPendingRespmod) {
+        debugs(26, 5, "waiting for RESPMOD adaptation_access check");
+        return;
+    }
+#endif
     if (preReadServerData.length()) {
         size_t copyBytes = preReadServerData.length() > SQUID_TCP_SO_RCVBUF ? SQUID_TCP_SO_RCVBUF : preReadServerData.length();
         memcpy(server.buf, preReadServerData.rawContent(), copyBytes);
@@ -1103,13 +1116,21 @@ TunnelStateData::noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer grou
         << ", RESPMOD: " << adaptationAccessCheckPendingRespmod);
 
     if (!group) {
-        debugs(85, 3, "no adaptation needed");
+        debugs(26, 3, "no adaptation needed");
+        return;
     }
 
-    if (group->method == Adaptation::methodReqmod)
+    if (group->method == Adaptation::methodReqmod) {
         adaptationAccessCheckPendingReqmod = false;
-    if (group->method == Adaptation::methodRespmod)
+        if (Comm::IsConnOpen(client.conn))
+            copyClientBytes();
+    }
+
+    if (group->method == Adaptation::methodRespmod) {
         adaptationAccessCheckPendingRespmod = false;
+        if (Comm::IsConnOpen(server.conn))
+            copyServerBytes();
+    }
 }
 
 void
