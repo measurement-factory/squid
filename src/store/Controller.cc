@@ -716,19 +716,11 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
         return false;
     }
 
-    bool needFinishUpdating = true;
-    if (sharedMemStore && old->mem_status == IN_MEMORY && !EBIT_TEST(old->flags, ENTRY_SPECIAL)) {
+    if (sharedMemStore && old->mem_status == IN_MEMORY && !EBIT_TEST(old->flags, ENTRY_SPECIAL))
         sharedMemStore->updateHeaders(old, e304);
-        needFinishUpdating = false;
-    }
 
-    if (old->swap_dirn > -1) {
+    if (old->swap_dirn > -1)
         disks->updateHeaders(old, e304);
-        needFinishUpdating = false;
-    }
-
-    if (needFinishUpdating)
-        updateCompleted(*old, e304, false); // applied==false because neither of the shared caches is going to be updated
 
     return true;
 }
