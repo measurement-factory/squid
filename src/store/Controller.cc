@@ -707,8 +707,8 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
 
     try {
         if (!old->updateOnNotModified(e304)) {
-            updateCompleted(*old, e304, false);
             debugs(20, 5, "updated nothing in " << *old << " with " << e304);
+            updateCompleted(*old, e304, false);
             return true;
         }
     } catch (...) {

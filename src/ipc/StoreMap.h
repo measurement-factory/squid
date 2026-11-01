@@ -82,12 +82,15 @@ public:
     /// whether StoreMap::abortWriting() was called for a read-locked entry
     std::atomic<uint8_t> writerHalted;
 
+    // XXX: we cannot check writing() in collapsed revalidation clients
+    // because revalidation writer becomes reader before the 304 response
+    // is applied. We need to extend the writing() state in the collapsed
+    // revalidation writer and remove this flag.
     /// true while there is a collapsed writer revalidation entry associated
     /// with this shared entry
     std::atomic<uint8_t> hasUpdater;
     /// true if the writer successfully finished update of a collapsed revalidation entry
-    /// false if there is no entry update or the writer failed to finish update of a collapsed
-    /// revalidation entry
+    /// false if the writer failed to finish update of a collapsed revalidation entry
     std::atomic<uint8_t> writerUpdateApplied;
 
     // fields marked with [app] can be modified when appending-while-reading

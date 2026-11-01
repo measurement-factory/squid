@@ -900,6 +900,7 @@ StoreEntry::invokeSmpCollapsedHandlers()
         } else {
             debugs(90, 3, "already invoked");
         }
+        i++;
     }
 }
 
