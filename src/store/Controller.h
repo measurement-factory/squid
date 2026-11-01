@@ -123,9 +123,10 @@ public:
     /// \returns an iterator for all Store entries
     StoreSearch *search();
 
-    /// adjusts the shared transients entry after the 304 update has been successfully applied
+    /// adjusts the shared transients entry after the 304 update has been successfully processed
     /// and notifies the shared collapsed revalidation readers that the entry is ready
-    void updateApplied(StoreEntry &e, const StoreEntry &e304);
+    /// \param applied whether the 304 reply changed the being revalidated shared entry (i.e., it was not a no-change)
+    void updateCompleted(StoreEntry &e, const StoreEntry &e304, bool applied);
     /// notifies the shared collapsed revalidation readers that the entry is ready
     /// and disconnects from the intransit table
     void completeUpdateAndDisconnect(MemObject::XitTable &);

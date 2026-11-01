@@ -707,6 +707,7 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
 
     try {
         if (!old->updateOnNotModified(e304)) {
+            updateCompleted(*old, e304, false);
             debugs(20, 5, "updated nothing in " << *old << " with " << e304);
             return true;
         }
@@ -727,7 +728,7 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
     }
 
     if (needFinishUpdating)
-        updateApplied(*old, e304);
+        updateCompleted(*old, e304, false); // applied==false because neither of the shared caches is going to be updated
 
     return true;
 }
@@ -934,10 +935,10 @@ Store::Controller::anchorToCache(StoreEntry &entry)
 }
 
 void
-Store::Controller::updateApplied(StoreEntry &e, const StoreEntry &e304)
+Store::Controller::updateCompleted(StoreEntry &e, const StoreEntry &e304, const bool applied)
 {
     if (e.hasTransients()) {
-        if (e.store_status == STORE_OK)
+        if (applied && e.store_status == STORE_OK)
             transients->refreshEntry(e);
 
         if (!e304.isSmpCollapsedRevalidationInitiator())

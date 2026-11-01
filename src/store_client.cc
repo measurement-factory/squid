@@ -890,11 +890,15 @@ StoreEntry::invokeSmpCollapsedHandlers()
 {
     debugs(90, 3, mem_obj->nclients << " clients; " << *this << ' ' << getMD5Text());
 
+    int i = 1;
     for (dlink_node *node = mem_obj->clients.head; node; node = node->next) {
+        debugs(90, 3, "checking client #" << i);
         auto sc = reinterpret_cast<store_client *>(node->data);
         if (sc->_smpCollapsedRevalidationCallback) {
             ScheduleCallHere(sc->_smpCollapsedRevalidationCallback);
             sc->_smpCollapsedRevalidationCallback = nullptr;
+        } else {
+            debugs(90, 3, "already invoked");
         }
     }
 }

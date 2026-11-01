@@ -55,7 +55,7 @@ StoreSearch *Controller::search() STUB_RETVAL(nullptr)
 bool Controller::SmpAware() STUB_RETVAL(false)
 int Controller::store_dirs_rebuilding = 0;
 Controller &Root() STUB_RETREF(Controller)
-void Controller::updateApplied(StoreEntry &, const StoreEntry &) STUB
+void Controller::updateCompleted(StoreEntry &, const StoreEntry &, bool) STUB
 void Controller::updateStarted(const StoreEntry &e) STUB
 void Controller::completeUpdateAndDisconnect(MemObject::XitTable &) STUB
 }

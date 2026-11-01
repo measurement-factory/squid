@@ -554,6 +554,16 @@ clientReplyContext::handleSmpCollapsedRevaliationReply()
 
         debugs(88, 3, "crInitiator successfully updated or replaced");
 
+        if (seFresh == old_entry) {
+            http->updateLoggingTags(LOG_TCP_REFRESH_UNMODIFIED);
+            http->request->flags.staleIfHit = false; // old_entry is no longer stale
+            // send existing entry, it's still valid
+            const auto oldStatus = old_entry->mem().freshestReply().sline.status();
+            debugs(88, 3, "revalidated existing entry and sending " << oldStatus << " to client");
+            sendClientOldEntry();
+            return;
+        }
+
         seFresh->lock("clientReplyContext::handleSmpCollapsedRevaliationReply");
 
         seFresh->ensureMemObject(storeId(), http->log_uri, http->request->method);
