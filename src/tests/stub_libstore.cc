@@ -56,7 +56,7 @@ bool Controller::SmpAware() STUB_RETVAL(false)
 int Controller::store_dirs_rebuilding = 0;
 Controller &Root() STUB_RETREF(Controller)
 void Controller::updateCompleted(StoreEntry &, const StoreEntry &, bool) STUB
-void Controller::updateStarted(const StoreEntry &e) STUB
+void Controller::updateStarted(const StoreEntry &) STUB
 void Controller::completeUpdateAndDisconnect(MemObject::XitTable &) STUB
 }
 
