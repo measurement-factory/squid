@@ -198,6 +198,7 @@ public:
 
         void setCollapsedRole(const CollapsedRole role) { if (collapsed == coNone) collapsed = role; }
         bool isCollapsedInitiator() const { return collapsed == coInitiator; }
+        bool isCollapsedSlave() const { return collapsed == coSlave; }
 
         int32_t index = -1; ///< entry position inside the in-transit table
         Store::IoStatus io = Store::ioUndecided; ///< current I/O state
