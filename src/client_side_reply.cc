@@ -387,8 +387,8 @@ clientReplyContext::HandleIMSReply(void *data, StoreIOBuffer result)
     try {
         context->handleIMSReply(result);
     } catch (...) {
-         debugs(88, 2, "Failed to process an IMS reply: " << CurrentException);
-         if (auto c = conn.get()) {
+        debugs(88, 2, "Failed to process an IMS reply: " << CurrentException);
+        if (auto c = conn.get()) {
             LogTagsErrors lte;
             static const auto d = MakeNamedErrorDetail("IMS_REPLY_ERROR");
             auto err = Error(ERR_CANNOT_FORWARD, d);
