@@ -1027,10 +1027,7 @@ TunnelStateData::copyServerBytes()
         return;
     }
 #endif
-    if (server.len) {
-        debugs(26, DBG_DATA, "Tunnel server PUSH Payload: \n" << Raw("", server.buf, server.len) << "\n----------");
-        copy(server.len, server, client, TunnelStateData::WriteClientDone);
-    } else if (preReadServerData.length()) {
+    if (preReadServerData.length()) {
         size_t copyBytes = preReadServerData.length() > SQUID_TCP_SO_RCVBUF ? SQUID_TCP_SO_RCVBUF : preReadServerData.length();
         memcpy(server.buf, preReadServerData.rawContent(), copyBytes);
         preReadServerData.consume(copyBytes);
@@ -1065,7 +1062,12 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
 #endif
 
         // Shovel any payload already pushed into reply buffer by the server response
-        tunnelState->copyServerBytes();
+        if (!tunnelState->server.len)
+            tunnelState->copyServerBytes();
+        else {
+            debugs(26, DBG_DATA, "Tunnel server PUSH Payload: \n" << Raw("", tunnelState->server.buf, tunnelState->server.len) << "\n----------");
+            tunnelState->copy(tunnelState->server.len, tunnelState->server, tunnelState->client, TunnelStateData::WriteClientDone);
+        }
 
         if (tunnelState->http.valid() && tunnelState->http->getConn() && !tunnelState->http->getConn()->inBuf.isEmpty()) {
             SBuf * const in = &tunnelState->http->getConn()->inBuf;
