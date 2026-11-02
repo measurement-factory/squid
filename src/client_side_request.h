@@ -226,7 +226,7 @@ private:
     void handleAdaptationBlock(const Adaptation::Answer &);
 
     /* Adaptation::Initiator API */
-    void noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer) override;
+    void noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome) override;
     void noteAdaptationAnswer(const Adaptation::Answer &) override;
 
     /* BodyConsumer API */

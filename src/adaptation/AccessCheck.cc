@@ -194,8 +194,9 @@ void
 Adaptation::AccessCheck::callBack(const ServiceGroupPointer &g)
 {
     debugs(93,3, g);
+    const auto outcome = AccessCheckOutcome{g, filter.method};
     CallJobHere1(93, 5, theInitiator, Adaptation::Initiator,
-                 noteAdaptationAclCheckDone, g);
+                 noteAdaptationAclCheckDone, outcome);
     mustStop("done"); // called back or will never be able to call back
 }
 

@@ -312,7 +312,7 @@ private:
 
     // Adaptation::Initiator API
     void noteAdaptationAnswer(const Adaptation::Answer &) override;
-    void noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer) override;
+    void noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome) override;
     // AsyncJob API
     bool doneAll() const override { return false; }
 
@@ -1110,23 +1110,18 @@ TunnelStateData::noteAdaptationAnswer(const Adaptation::Answer &)
 }
 
 void
-TunnelStateData::noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer group)
+TunnelStateData::noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome outcome)
 {
-    debugs(26, 3, group << "; pending REQMOD: " << adaptationAccessCheckPendingReqmod
+    debugs(26, 3, outcome.group << "; pending REQMOD: " << adaptationAccessCheckPendingReqmod
         << ", RESPMOD: " << adaptationAccessCheckPendingRespmod);
 
-    if (!group) {
-        debugs(26, 3, "no adaptation needed");
-        return;
-    }
-
-    if (group->method == Adaptation::methodReqmod) {
+    if (outcome.method == Adaptation::methodReqmod) {
         adaptationAccessCheckPendingReqmod = false;
         if (Comm::IsConnOpen(client.conn))
             copyClientBytes();
     }
 
-    if (group->method == Adaptation::methodRespmod) {
+    if (outcome.method == Adaptation::methodRespmod) {
         adaptationAccessCheckPendingRespmod = false;
         if (Comm::IsConnOpen(server.conn))
             copyServerBytes();
