@@ -19,7 +19,7 @@
 
 int storePendingNClients(const StoreEntry *) STUB_RETVAL_NOP(0)
 void StoreEntry::invokeHandlers() STUB_NOP
-void StoreEntry::invokeSmpCollapsedHandlers() STUB_NOP
+bool StoreEntry::invokeSmpCollapsedHandlers() STUB_RETVAL(false)
 void storeLog(int, const StoreEntry *) STUB_NOP
 void storeLogOpen(void) STUB
 void storeDigestInit(void) STUB
