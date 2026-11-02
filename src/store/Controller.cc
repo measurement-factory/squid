@@ -810,13 +810,10 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
         // we are a collapsed revalidation reader and the collapsed revalidation updater has completed its work
         debugs(20, 5, "revalidated " << *collapsed << " writerUpdateApplied=" << entryStatus.writerUpdateApplied);
         collapsed->setCollapsingRequirement(false); // false for collapsed clients, TODO: remove
-        if (!entryStatus.writerUpdateApplied) {
+        if (collapsed->invokeSmpCollapsedHandlers() && !entryStatus.writerUpdateApplied) {
             // writer failed to update for some reason
             collapsed->abort();
         }
-        collapsed->invokeSmpCollapsedHandlers();
-        // this entry is not a subject to collapsing revalidation anymore
-        collapsed->mem_obj->xitTable.collapsed = MemObject::XitTable::coNone;
         return;
     }
 

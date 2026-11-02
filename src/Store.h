@@ -155,7 +155,8 @@ public:
     void cacheNegatively();
 
     void invokeHandlers();
-    void invokeSmpCollapsedHandlers();
+    /// \returns true if at least one handler has been invoked
+    bool invokeSmpCollapsedHandlers();
     void cacheInMemory(); ///< start or continue storing in memory cache
     void swapOut();
     /// whether we are in the process of writing this entry to disk
