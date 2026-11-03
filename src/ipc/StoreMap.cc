@@ -65,6 +65,22 @@ Ipc::StoreMap::StoreMap(const SBuf &aPath): cleaner(nullptr), path(aPath),
     assert(entryLimit() <= sliceLimit()); // at least one slice per entry
 }
 
+void
+Ipc::StoreMap::setUpdater(const sfileno fileno, bool on)
+{
+    Anchor &inode = anchorAt(fileno);
+    Assure(inode.writing() || inode.reading());
+    inode.hasUpdater = on;
+}
+
+void
+Ipc::StoreMap::updateApplied(const sfileno fileno)
+{
+    Anchor &inode = anchorAt(fileno);
+    assert(inode.writing() || inode.reading());
+    inode.writerUpdateApplied = true;
+}
+
 int
 Ipc::StoreMap::compareVersions(const sfileno fileno, time_t newVersion) const
 {
@@ -150,6 +166,14 @@ Ipc::StoreMap::openForWriting(const cache_key *const key, sfileno &fileno)
     }
 
     debugs(54, 5, "replacing stale entry " << currentIdx << " to write " << path);
+
+    // The code below tries to assign a new anchor to get around the stale
+    // entry. In some situations the anchor consumption may increase significantly.
+    // For example, a resource needing revalidation is being slowly stored.
+    // Every new request to the same resource may get another 200 response after
+    // revalidation that deprecates the previous one and thus consumes additional
+    // anchor. N such requests will consume N additional anchors, depleting
+    // the anchors pool and making collisions more likely. TODO: optimize.
 
     const auto staleAnchor = openForReplacingAt(currentIdx, key);
     if (!staleAnchor)
@@ -759,6 +783,8 @@ Ipc::StoreMap::closeForUpdating(Update &update)
     closeForReading(update.fresh.fileNo);
     update.fresh = Update::Edition();
 
+    Store::Root().updateCompletedBy304(*update.entry, *update.entry304, true);
+
     debugs(54, 5, "closed entry " << updateSaved.stale.fileNo << " of " << *updateSaved.entry <<
            " named " << updateSaved.stale.name << " for updating " << path <<
            " to fresh entry " << updateSaved.fresh.fileNo << " named " << updateSaved.fresh.name <<
@@ -1025,7 +1051,7 @@ Ipc::StoreMap::sliceAt(const SliceId sliceId) const
 
 /* Ipc::StoreMapAnchor */
 
-Ipc::StoreMapAnchor::StoreMapAnchor(): start(0), splicingPoint(-1)
+Ipc::StoreMapAnchor::StoreMapAnchor(): hasUpdater(false), writerUpdateApplied(false), start(0), splicingPoint(-1)
 {
     // keep in sync with rewind()
 }
@@ -1098,28 +1124,35 @@ Ipc::StoreMapAnchor::rewind()
     basics.clear();
     waitingToBeFreed = false;
     writerHalted = false;
+    hasUpdater = false;
+    writerUpdateApplied = false;
     // but keep the lock
 }
 
 /* Ipc::StoreMapUpdate */
 
-Ipc::StoreMapUpdate::StoreMapUpdate(StoreEntry *anEntry):
-    entry(anEntry)
+Ipc::StoreMapUpdate::StoreMapUpdate(StoreEntry *anEntry, const StoreEntry *e304):
+    entry(anEntry),
+    entry304(e304)
 {
     entry->lock("Ipc::StoreMapUpdate1");
+    const_cast<StoreEntry *>(entry304)->lock("Ipc::StoreMapUpdate1");
 }
 
 Ipc::StoreMapUpdate::StoreMapUpdate(const StoreMapUpdate &other):
     entry(other.entry),
+    entry304(other.entry304),
     stale(other.stale),
     fresh(other.fresh)
 {
     entry->lock("Ipc::StoreMapUpdate2");
+    const_cast<StoreEntry *>(entry304)->lock("Ipc::StoreMapUpdate2");
 }
 
 Ipc::StoreMapUpdate::~StoreMapUpdate()
 {
     entry->unlock("Ipc::StoreMapUpdate");
+    const_cast<StoreEntry *>(entry304)->unlock("Ipc::StoreMapUpdate");
 }
 
 /* Ipc::StoreMap::Owner */

@@ -34,7 +34,7 @@ public:
     void sync() override;
     void reference(StoreEntry &) override;
     bool dereference(StoreEntry &e) override;
-    void updateHeaders(StoreEntry *) override;
+    void updateHeaders(StoreEntry *, const StoreEntry &e304) override;
     void maintain() override;
     bool anchorToCache(StoreEntry &) override;
     bool updateAnchored(StoreEntry &) override;

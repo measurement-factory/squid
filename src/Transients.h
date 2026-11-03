@@ -33,6 +33,8 @@ public:
     public:
         bool hasWriter = false; ///< whether some worker is storing the entry
         bool waitingToBeFreed = false; ///< whether the entry was marked for deletion
+        bool hasUpdater = false; ///< whether the collapsed revalidation initiator has an associated transients entry
+        bool writerUpdateApplied = false; ///< whether some worker updated the collapsed revalidation entry
     };
 
     Transients();
@@ -51,11 +53,24 @@ public:
     /// copies current shared entry metadata into entryStatus
     void status(const StoreEntry &e, EntryStatus &entryStatus) const;
 
+    /// notifies the shared collapsed revalidation readers that the updated entry is ready
+    void updateApplied(const MemObject::XitTable &);
+
+    /// sets the "has updater" status to the shared transients entry
+    void updateStarted(const StoreEntry &entry);
+
+    /// removes the "has updater" status from the shared transients entry
+    void updateFinished(const MemObject::XitTable &);
+
+    /// assign a new index to completed (STORE_OK) entry
+    void refreshEntry(StoreEntry &e);
+
     /// number of entry readers some time ago
     int readers(const StoreEntry &e) const;
 
     /// the caller is done writing or reading the given entry
     void disconnect(StoreEntry &);
+    void disconnect(MemObject::XitTable &);
 
     /* Store API */
     StoreEntry *get(const cache_key *) override;

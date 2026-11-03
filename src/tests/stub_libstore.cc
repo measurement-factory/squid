@@ -50,11 +50,15 @@ void Controller::syncCollapsed(const sfileno) STUB
 void Controller::noteStoppedSharedWriting(StoreEntry &) STUB
 int Controller::transientReaders(const StoreEntry &) const STUB_RETVAL(0)
 void Controller::transientsDisconnect(StoreEntry &) STUB
+void Controller::transientsDisconnect(MemObject::XitTable &) STUB
 void Controller::memoryDisconnect(StoreEntry &) STUB
 StoreSearch *Controller::search() STUB_RETVAL(nullptr)
 bool Controller::SmpAware() STUB_RETVAL(false)
 int Controller::store_dirs_rebuilding = 0;
 Controller &Root() STUB_RETREF(Controller)
+void Controller::updateCompletedBy304(StoreEntry &, const StoreEntry &, bool) STUB
+void Controller::updateStarted(const StoreEntry &) STUB
+void Controller::updateCompletedByFreshResponse(MemObject::XitTable &) STUB
 }
 
 #include "store/Disk.h"
@@ -109,7 +113,7 @@ void Disks::stat(StoreEntry &) const STUB
 void Disks::sync() STUB
 void Disks::reference(StoreEntry &) STUB
 bool Disks::dereference(StoreEntry &) STUB_RETVAL(false)
-void Disks::updateHeaders(StoreEntry *) STUB
+void Disks::updateHeaders(StoreEntry *, const StoreEntry &) STUB
 void Disks::maintain() STUB
 bool Disks::anchorToCache(StoreEntry &) STUB_RETVAL(false)
 bool Disks::updateAnchored(StoreEntry &) STUB_RETVAL(false)

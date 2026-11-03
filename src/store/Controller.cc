@@ -627,6 +627,20 @@ Store::Controller::transientsDisconnect(StoreEntry &e)
 }
 
 void
+Store::Controller::transientsDisconnect(MemObject::XitTable &xitTable)
+{
+    if (transients)
+        transients->disconnect(xitTable);
+}
+
+void
+Store::Controller::updateCompletedByFreshResponse(MemObject::XitTable &xitTable)
+{
+    if (transients)
+        transients->updateApplied(xitTable);
+}
+
+void
 Store::Controller::handleIdleEntry(StoreEntry &e)
 {
     bool keepInLocalMemory = false;
@@ -699,6 +713,7 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
     try {
         if (!old->updateOnNotModified(e304)) {
             debugs(20, 5, "updated nothing in " << *old << " with " << e304);
+            updateCompletedBy304(*old, e304, false);
             return true;
         }
     } catch (...) {
@@ -707,10 +722,10 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
     }
 
     if (sharedMemStore && old->mem_status == IN_MEMORY && !EBIT_TEST(old->flags, ENTRY_SPECIAL))
-        sharedMemStore->updateHeaders(old);
+        sharedMemStore->updateHeaders(old, e304);
 
     if (old->swap_dirn > -1)
-        disks->updateHeaders(old);
+        disks->updateHeaders(old, e304);
 
     return true;
 }
@@ -795,6 +810,21 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
         return; // readers can only change our waitingToBeFreed flag
 
     assert(transients->isReader(*collapsed));
+
+    if (collapsed->mem_obj->xitTable.isCollapsedSlave()) {
+        if (!entryStatus.hasUpdater) {
+            // we are a collapsed revalidation reader and the collapsed revalidation updater has completed its work
+            debugs(20, 5, "revalidated " << *collapsed << " writerUpdateApplied=" << entryStatus.writerUpdateApplied);
+            collapsed->setCollapsingRequirement(false); // false for collapsed clients, TODO: remove
+            if (!entryStatus.writerUpdateApplied) {
+                // writer failed to update for some reason
+                collapsed->abort();
+            } else {
+                collapsed->invokeSmpCollapsedHandlers();
+            }
+        } // else wait for the collapsed updater to finish its work
+        return;
+    }
 
     bool found = false;
     bool inSync = false;
@@ -902,6 +932,27 @@ Store::Controller::anchorToCache(StoreEntry &entry)
     debugs(20, 7, "skipping not yet cached " << entry);
     entry.setCollapsingRequirement(true);
     return false;
+}
+
+void
+Store::Controller::updateCompletedBy304(StoreEntry &e, const StoreEntry &e304, const bool applied)
+{
+    if (e.hasTransients()) {
+        if (applied && e.store_status == STORE_OK)
+            transients->refreshEntry(e);
+
+        if (!e304.isSmpCollapsedRevalidationInitiator())
+            return;
+
+        transients->updateApplied(e304.mem_obj->xitTable);
+    }
+}
+
+void
+Store::Controller::updateStarted(const StoreEntry &e)
+{
+    if (e.hasTransients())
+        transients->updateStarted(e);
 }
 
 bool

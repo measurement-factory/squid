@@ -347,12 +347,12 @@ MemStore::get(const cache_key *key)
 }
 
 void
-MemStore::updateHeaders(StoreEntry *updatedE)
+MemStore::updateHeaders(StoreEntry *updatedE, const StoreEntry &e304)
 {
     if (!map)
         return;
 
-    Ipc::StoreMapUpdate update(updatedE);
+    Ipc::StoreMapUpdate update(updatedE, &e304);
     assert(updatedE);
     assert(updatedE->mem_obj);
     if (!map->openForUpdating(update, updatedE->mem_obj->memCache.index))
