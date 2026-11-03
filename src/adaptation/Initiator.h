@@ -28,9 +28,18 @@
 namespace Adaptation
 {
 
-struct AccessCheckOutcome{
-    Adaptation::ServiceGroupPointer group;
-    Adaptation::Method method;
+/// the result of an adaptation_access check, reported by AccessCheck to the
+/// Initiator that started that check
+class AccessCheckOutcome
+{
+public:
+    /// the service group where adaptation should start or nil if no adaptation
+    /// is needed
+    ServiceGroupPointer group;
+
+    /// the checked adaptation method; lets an Initiator with concurrent checks
+    /// identify the check, even when group is nil
+    Method method;
 };
 
 std::ostream &operator <<(std::ostream &, const AccessCheckOutcome &);
@@ -41,8 +50,9 @@ public:
     Initiator(): AsyncJob("Initiator") {}
     ~Initiator() override {}
 
-    /// AccessCheck calls this back with a possibly nil service group
-    /// to signal whether adaptation is needed and where it should start.
+    /// AccessCheck calls this back with the outcome of the check for
+    /// outcome.method. A possibly nil outcome.group signals whether adaptation
+    /// is needed and where it should start.
     virtual void noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome outcome);
     /// called with the initial adaptation decision (adapt, block, error);
     /// virgin and/or adapted body transmission may continue after this
