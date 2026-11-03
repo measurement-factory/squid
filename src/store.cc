@@ -1184,6 +1184,7 @@ StoreEntry::abort()
      */
     /* Notify the client side */
     invokeHandlers();
+    invokeSmpCollapsedHandlers();
 
     // abort swap out, invalidating what was created so far (release follows)
     swapOutFileClose(StoreIOState::writerGone);

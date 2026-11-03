@@ -885,12 +885,11 @@ StoreEntry::invokeHandlers()
     CodeContext::Reset(savedContext);
 }
 
-bool
+void
 StoreEntry::invokeSmpCollapsedHandlers()
 {
     debugs(90, 3, mem_obj->nclients << " clients; " << *this << ' ' << getMD5Text());
 
-    bool result = false;
     int i = 1;
     for (dlink_node *node = mem_obj->clients.head; node; node = node->next) {
         debugs(90, 3, "checking client #" << i);
@@ -898,13 +897,11 @@ StoreEntry::invokeSmpCollapsedHandlers()
         if (sc->_smpCollapsedRevalidationCallback) {
             ScheduleCallHere(sc->_smpCollapsedRevalidationCallback);
             sc->_smpCollapsedRevalidationCallback = nullptr;
-            result = true;
         } else {
             debugs(90, 3, "already invoked");
         }
         i++;
     }
-    return result;
 }
 
 // Does not account for remote readers/clients.

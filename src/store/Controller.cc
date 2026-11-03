@@ -806,14 +806,18 @@ Store::Controller::syncCollapsed(const sfileno xitIndex)
 
     assert(transients->isReader(*collapsed));
 
-    if (collapsed->mem_obj->xitTable.isCollapsedSlave() && !entryStatus.hasUpdater) {
-        // we are a collapsed revalidation reader and the collapsed revalidation updater has completed its work
-        debugs(20, 5, "revalidated " << *collapsed << " writerUpdateApplied=" << entryStatus.writerUpdateApplied);
-        collapsed->setCollapsingRequirement(false); // false for collapsed clients, TODO: remove
-        if (collapsed->invokeSmpCollapsedHandlers() && !entryStatus.writerUpdateApplied) {
-            // writer failed to update for some reason
-            collapsed->abort();
-        }
+    if (collapsed->mem_obj->xitTable.isCollapsedSlave()) {
+        if (!entryStatus.hasUpdater) {
+            // we are a collapsed revalidation reader and the collapsed revalidation updater has completed its work
+            debugs(20, 5, "revalidated " << *collapsed << " writerUpdateApplied=" << entryStatus.writerUpdateApplied);
+            collapsed->setCollapsingRequirement(false); // false for collapsed clients, TODO: remove
+            if (!entryStatus.writerUpdateApplied) {
+                // writer failed to update for some reason
+                collapsed->abort();
+            } else {
+                collapsed->invokeSmpCollapsedHandlers();
+            }
+        } // else wait for the collapsed updater to finish its work
         return;
     }
 
