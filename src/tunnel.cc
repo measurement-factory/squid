@@ -259,12 +259,12 @@ public:
 
     void saveError(ErrorState *finalError);
     void sendError(ErrorState *finalError, const char *reason);
-
 #if USE_ADAPTATION
+
     // AsyncJob API
     void callException(const std::exception &) override;
+#endif /* USE_ADAPTATION */
 
-#endif
 private:
     void usePinned();
 
@@ -313,8 +313,8 @@ private:
     // AsyncJob API
     bool doneAll() const override {
         // Always false because TunnelStateData is not a proper AsyncJob yet:
-        // It is never AsyncJob::Start()ed and destroys itself via deleteThis(). 
-        // Becoming done() during an Initiator callback would make AsyncJob::callEnd() 
+        // It is never AsyncJob::Start()ed and destroys itself via deleteThis().
+        // Becoming done() during an Initiator callback would make AsyncJob::callEnd()
         // fail its assert(started_) check.
         return false;
     }
@@ -1107,7 +1107,6 @@ TunnelStateData::startAdaptationAccessCheck()
     server.adaptationAccessCheckPending = Adaptation::AccessCheck::Start(
         Adaptation::methodRespmod, Adaptation::pointPreCache, request.getRaw(), nullptr, al, this);
     debugs(26, 3, "server.adaptationAccessCheckPending=" << server.adaptationAccessCheckPending);
-
 }
 
 void
