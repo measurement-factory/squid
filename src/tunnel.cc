@@ -311,7 +311,13 @@ private:
     void noteAdaptationAnswer(const Adaptation::Answer &) override;
     void noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome) override;
     // AsyncJob API
-    bool doneAll() const override { return false; }
+    bool doneAll() const override {
+        // Always false because TunnelStateData is not a proper AsyncJob yet:
+        // It is never AsyncJob::Start()ed and destroys itself via deleteThis(). 
+        // Becoming done() during an Initiator callback would make AsyncJob::callEnd() 
+        // fail its assert(started_) check.
+        return false;
+    }
 
 #endif /* USE_ADAPTATION */
 
@@ -1106,18 +1112,18 @@ TunnelStateData::noteAdaptationAnswer(const Adaptation::Answer &)
 void
 TunnelStateData::noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome outcome)
 {
-    Assure(outcome.method == Adaptation::methodReqmod || outcome.method == Adaptation::methodRespmod);
-    debugs(26, 3, outcome.group << "; pending REQMOD: " << client.adaptationAccessCheckPending
+    debugs(26, 3, outcome << "; pending REQMOD: " << client.adaptationAccessCheckPending
         << ", RESPMOD: " << server.adaptationAccessCheckPending);
-
-    if (!Comm::IsConnOpen(client.conn) || !Comm::IsConnOpen(server.conn)) {
-        debugs(26, 3, "one of the connections is closed, skipping adaptation check");
-        return;
-    }
+    Assure(outcome.method == Adaptation::methodReqmod || outcome.method == Adaptation::methodRespmod);
 
     auto &c = outcome.method == Adaptation::methodReqmod ? client : server;
     Assure(c.adaptationAccessCheckPending);
     c.adaptationAccessCheckPending = false;
+
+    if (!Comm::IsConnOpen(client.conn) || !Comm::IsConnOpen(server.conn)) {
+        debugs(26, 3, "not resuming after adaptation_access check: a tunnel connection is closed");
+        return;
+    }
 
     if (outcome.method == Adaptation::methodReqmod)
         copyClientBytes();
@@ -1129,6 +1135,8 @@ void
 TunnelStateData::callException(const std::exception &e)
 {
     debugs(26, 3, "closing after exception: " << e.what());
+    // Unlike the default AsyncJob implementation, does not
+    // call mustStop() because we must never become done()
     closeConnections();
 }
 #endif /* USE_ADAPTATION */
