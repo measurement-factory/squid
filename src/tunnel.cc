@@ -188,6 +188,13 @@ public:
         DelayId delayId;
 #endif
 
+#if USE_ADAPTATION
+        /// whether we are waiting for the adaptation_access check covering
+        /// bytes read from this connection to complete (i.e. the REQMOD check
+        /// for the client connection and the RESPMOD check for the server one)
+        bool adaptationAccessCheckPending = false;
+#endif
+
     private:
         /// the registered close handler for the connection
         AsyncCall::Pointer closer;
@@ -299,16 +306,6 @@ private:
     std::optional<SBuf> proxyProtocolHeader;
 
 #if USE_ADAPTATION
-
-    // TODO: If possible, move/merge adaptationAccessCheckPendingReqmod and
-    // adaptationAccessCheckPendingRespmod into/as
-    // TunnelStateData::Connection::adaptationAccessCheckPending.
-
-    /// whether we are waiting for the REQMOD adaptation_access check to complete
-    bool adaptationAccessCheckPendingReqmod = false;
-
-    /// whether we are waiting for the RESPMOD adaptation_access check to complete
-    bool adaptationAccessCheckPendingRespmod = false;
 
     // Adaptation::Initiator API
     void noteAdaptationAnswer(const Adaptation::Answer &) override;
@@ -1002,7 +999,7 @@ void
 TunnelStateData::copyClientBytes()
 {
 #if USE_ADAPTATION
-    if (adaptationAccessCheckPendingReqmod) {
+    if (client.adaptationAccessCheckPending) {
         debugs(26, 5, "waiting for REQMOD adaptation_access check");
         return;
     }
@@ -1022,7 +1019,7 @@ void
 TunnelStateData::copyServerBytes()
 {
 #if USE_ADAPTATION
-    if (adaptationAccessCheckPendingRespmod) {
+    if (server.adaptationAccessCheckPending) {
         debugs(26, 5, "waiting for RESPMOD adaptation_access check");
         return;
     }
@@ -1087,19 +1084,16 @@ TunnelStateData::startAdaptationAccessCheck()
     if (!Adaptation::Config::appliesToTunnels)
         return;
 
-    // TODO: See how ClientHttpRequest::doCallouts() does it.
-    Assure(!adaptationAccessCheckPendingReqmod);
-    adaptationAccessCheckPendingReqmod = Adaptation::AccessCheck::Start(
+    Assure(!client.adaptationAccessCheckPending);
+    client.adaptationAccessCheckPending = Adaptation::AccessCheck::Start(
         Adaptation::methodReqmod, Adaptation::pointPreCache, request.getRaw(), nullptr, al, this);
-    debugs(26, 3, "adaptationAccessCheckPendingReqmod=" << adaptationAccessCheckPendingReqmod);
+    debugs(26, 3, "client.adaptationAccessCheckPending=" << client.adaptationAccessCheckPending);
 
-    // TODO: See how Client::adaptOrFinalizeReply() does it.
-    Assure(!adaptationAccessCheckPendingRespmod);
-    adaptationAccessCheckPendingRespmod = Adaptation::AccessCheck::Start(
+    Assure(!server.adaptationAccessCheckPending);
+    server.adaptationAccessCheckPending = Adaptation::AccessCheck::Start(
         Adaptation::methodRespmod, Adaptation::pointPreCache, request.getRaw(), nullptr, al, this);
-    debugs(26, 3, "adaptationAccessCheckPendingRespmod=" << adaptationAccessCheckPendingRespmod);
+    debugs(26, 3, "server.adaptationAccessCheckPending=" << server.adaptationAccessCheckPending);
 
-    // TODO: Delay writing while the corresponding adaptationAccessCheckPendingReqmod is true.
     // TODO: Check whether we have a timeout to avoid getting stuck while waiting for those two pending checks.
 }
 
@@ -1112,20 +1106,23 @@ TunnelStateData::noteAdaptationAnswer(const Adaptation::Answer &)
 void
 TunnelStateData::noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome outcome)
 {
-    debugs(26, 3, outcome.group << "; pending REQMOD: " << adaptationAccessCheckPendingReqmod
-        << ", RESPMOD: " << adaptationAccessCheckPendingRespmod);
+    Assure(outcome.method == Adaptation::methodReqmod || outcome.method == Adaptation::methodRespmod);
+    debugs(26, 3, outcome.group << "; pending REQMOD: " << client.adaptationAccessCheckPending
+        << ", RESPMOD: " << server.adaptationAccessCheckPending);
 
-    if (outcome.method == Adaptation::methodReqmod) {
-        adaptationAccessCheckPendingReqmod = false;
-        if (Comm::IsConnOpen(client.conn))
-            copyClientBytes();
+    if (!Comm::IsConnOpen(client.conn) || !Comm::IsConnOpen(server.conn)) {
+        debugs(26, 3, "one of the connections is closed, skipping adaptation check");
+        return;
     }
 
-    if (outcome.method == Adaptation::methodRespmod) {
-        adaptationAccessCheckPendingRespmod = false;
-        if (Comm::IsConnOpen(server.conn))
-            copyServerBytes();
-    }
+    auto &c = outcome.method == Adaptation::methodReqmod ? client : server;
+    Assure(c.adaptationAccessCheckPending);
+    c.adaptationAccessCheckPending = false;
+
+    if (outcome.method == Adaptation::methodReqmod)
+        copyClientBytes();
+    else
+        copyServerBytes();
 }
 
 void
