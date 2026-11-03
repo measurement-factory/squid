@@ -627,12 +627,17 @@ Store::Controller::transientsDisconnect(StoreEntry &e)
 }
 
 void
-Store::Controller::completeUpdateAndDisconnect(MemObject::XitTable &xitTable)
+Store::Controller::transientsDisconnect(MemObject::XitTable &xitTable)
 {
-    if (transients) {
-        transients->updateApplied(xitTable);
+    if (transients)
         transients->disconnect(xitTable);
-    }
+}
+
+void
+Store::Controller::updateCompletedByFreshResponse(MemObject::XitTable &xitTable)
+{
+    if (transients)
+        transients->updateApplied(xitTable);
 }
 
 void
@@ -708,7 +713,7 @@ Store::Controller::updateOnNotModified(StoreEntry *old, StoreEntry &e304)
     try {
         if (!old->updateOnNotModified(e304)) {
             debugs(20, 5, "updated nothing in " << *old << " with " << e304);
-            updateCompleted(*old, e304, false);
+            updateCompletedBy304(*old, e304, false);
             return true;
         }
     } catch (...) {
@@ -930,7 +935,7 @@ Store::Controller::anchorToCache(StoreEntry &entry)
 }
 
 void
-Store::Controller::updateCompleted(StoreEntry &e, const StoreEntry &e304, const bool applied)
+Store::Controller::updateCompletedBy304(StoreEntry &e, const StoreEntry &e304, const bool applied)
 {
     if (e.hasTransients()) {
         if (applied && e.store_status == STORE_OK)

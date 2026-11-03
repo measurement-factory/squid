@@ -592,7 +592,8 @@ Store::CollapsedEntryTransientsState::release()
         assert(entry->mem_obj->xitTable.index != xitTable.index);
 
         // notify via the old transients entry about the update
-        Store::Root().completeUpdateAndDisconnect(xitTable);
+        Store::Root().updateCompletedByFreshResponse(xitTable);
+        Store::Root().transientsDisconnect(xitTable);
         xitTable = MemObject::XitTable();
     }
 }
