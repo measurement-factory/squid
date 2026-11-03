@@ -1090,6 +1090,14 @@ TunnelStateData::startAdaptationAccessCheck()
     if (!Adaptation::Config::appliesToTunnels)
         return;
 
+    // XXX: If an AccessCheck job never calls us back (e.g., because it threw;
+    // AccessCheck lacks a swanSong() that would notify its initiator), the
+    // corresponding tunnel direction stays blocked.
+    // Other AccessCheck initiators share this problem.
+    // The blocked direction does not time out on its own because each read in
+    // the other direction resets the timeouts of both connections (see
+    // keepGoingAfterRead()). The tunnel stays open until the other direction
+    // ends (e.g., EOF) or stays idle for read_timeout.
     Assure(!client.adaptationAccessCheckPending);
     client.adaptationAccessCheckPending = Adaptation::AccessCheck::Start(
         Adaptation::methodReqmod, Adaptation::pointPreCache, request.getRaw(), nullptr, al, this);
@@ -1100,7 +1108,6 @@ TunnelStateData::startAdaptationAccessCheck()
         Adaptation::methodRespmod, Adaptation::pointPreCache, request.getRaw(), nullptr, al, this);
     debugs(26, 3, "server.adaptationAccessCheckPending=" << server.adaptationAccessCheckPending);
 
-    // TODO: Check whether we have a timeout to avoid getting stuck while waiting for those two pending checks.
 }
 
 void
