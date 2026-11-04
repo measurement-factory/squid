@@ -10377,6 +10377,32 @@ Example:
 adaptation_access service_1 allow all
 DOC_END
 
+NAME: adaptation_of_tunnels
+TYPE: onoff
+IFDEF: USE_ADAPTATION
+COMMENT: on|off
+LOC: Adaptation::Config::appliesToTunnels
+DEFAULT: off
+DOC_START
+	Controls whether Squid ICAP/eCAP adaptation features may be used for
+	client-to-server and server-to-client bytes streamed inside TCP tunnels
+	established by Squid (e.g., when honoring an HTTP CONNECT request).
+
+	When enabled, Squid performs an `adaptation_access` check for each of the
+	two TCP tunnel directions and, if the corresponding access is granted, uses
+	a single fake HTTP PUT request for REQMOD adaptation of client-to-server
+	bytes and a single fake HTTP 200 response for RESPMOD adaptation of
+	server-to-client bytes.
+
+	If an adaptation service blocks a fake message, Squid acts as if the
+	corresponding tunnel's end point reset its TCP connection with Squid.
+
+	If an adaptation service ends message adaptation before Squid ends that
+	message transmission to the service (i.e. before Squid receives a TCP EOF
+	from the corresponding tunnel's end point), Squid acts as if the
+	corresponding tunnel's end point closed its TCP connection with Squid.
+DOC_END
+
 NAME: adaptation_service_iteration_limit
 TYPE: int
 IFDEF: USE_ADAPTATION
