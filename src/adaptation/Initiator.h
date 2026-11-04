@@ -50,9 +50,8 @@ public:
     Initiator(): AsyncJob("Initiator") {}
     ~Initiator() override {}
 
-    /// AccessCheck calls this back with the outcome of the check for
-    /// outcome.method. A possibly nil outcome.group signals whether adaptation
-    /// is needed and where it should start.
+    /// AccessCheck calls this back with a possibly nil outcome.group
+    /// to signal whether adaptation is needed and where it should start.
     virtual void noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome outcome);
     /// called with the initial adaptation decision (adapt, block, error);
     /// virgin and/or adapted body transmission may continue after this
