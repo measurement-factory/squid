@@ -1828,9 +1828,9 @@ StoreEntry::startWriting()
 char const *
 StoreEntry::getSerialisedMetaData(size_t &length) const
 {
-    Assure(publicKey());
-    Assure(publicKeyScope() == ksDefault);
-    return static_cast<const char *>(Store::PackSwapMeta(*this, length).release());
+    if (publicKey() && publicKeyScope() == ksDefault)
+        return static_cast<const char *>(Store::PackSwapMeta(*this, length).release());
+    return nullptr;
 }
 
 /**

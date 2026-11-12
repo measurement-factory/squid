@@ -194,6 +194,10 @@ Rock::HeaderUpdater::startWriting()
         const auto savedEntrySwapFileSize = update.entry->swap_file_sz;
         update.entry->swap_file_sz = 0;
         const auto freshSwapHeader = update.entry->getSerialisedMetaData(freshSwapHeaderSize);
+        if (!freshSwapHeader) {
+            mustStop("getSerialisedMetaData error");
+            return;
+        }
         update.entry->swap_file_sz = savedEntrySwapFileSize;
 
         Must(freshSwapHeader);
