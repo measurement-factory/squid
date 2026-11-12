@@ -132,6 +132,8 @@ public:
                nullptr;
     }
 
+    bool hasDefaultPublicKeyScope() const { return publicKey() && publicKeyScope() == ksDefault; }
+
     /// Either fills this entry with private key or changes the existing key
     /// from public to private.
     /// \param permanent whether this entry should be private forever.

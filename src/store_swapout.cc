@@ -56,7 +56,14 @@ storeSwapOutStart(StoreEntry * e)
 
     // Create metadata now, possibly in vain: storeCreate needs swap_hdr_sz.
     const auto buf = e->getSerialisedMetaData(mem->swap_hdr_sz);
-    assert(buf);
+
+    if (buf == nullptr) {
+        assert(!e->hasDisk());
+        e->swap_status = SWAPOUT_NONE;
+        e->swapOutDecision(MemObject::SwapOut::swImpossible);
+        storeLog(STORE_LOG_SWAPOUTFAIL, e);
+        return;
+    }
 
     /* Create the swap file */
     generic_cbdata *c = new generic_cbdata(e);
