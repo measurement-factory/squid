@@ -194,10 +194,6 @@ Rock::HeaderUpdater::startWriting()
         const auto savedEntrySwapFileSize = update.entry->swap_file_sz;
         update.entry->swap_file_sz = 0;
         const auto freshSwapHeader = update.entry->getSerialisedMetaData(freshSwapHeaderSize);
-        if (!freshSwapHeader) {
-            mustStop("getSerialisedMetaData error");
-            return;
-        }
         update.entry->swap_file_sz = savedEntrySwapFileSize;
 
         Must(freshSwapHeader);
@@ -292,6 +288,8 @@ Rock::HeaderUpdater::parseReadBytes()
     debugs(47, 7, "httpBodySizePrefix=" << exchangeBuffer.length());
 
     stopReading("read the last HTTP header slot");
+    if (!update.entry->isSerializable())
+        throw TextException("the entry is no longer serializable", Here());
     startWriting();
 }
 
