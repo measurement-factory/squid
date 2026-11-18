@@ -165,6 +165,9 @@ Rock::HeaderUpdater::noteDoneReading(int errflag)
 void
 Rock::HeaderUpdater::startWriting()
 {
+    if (!update.entry->hasSerialisableMetaData())
+        throw TextException("the entry metadata is no longer serializable", Here());
+
     writer = store->createUpdateIO(
                  update,
                  &NoteDoneWriting,
