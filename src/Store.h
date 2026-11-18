@@ -83,7 +83,7 @@ public:
 
     store_client_t storeClientType() const;
     /// \returns a malloc()ed buffer containing a length-long packed swap header
-    /// \prec isSerializable()
+    /// \prec hasSerialisableMetaData()
     const char *getSerialisedMetaData(size_t &length) const;
     /// Store a prepared error response. MemObject locks the reply object.
     void storeErrorResponse(HttpReply *reply);
@@ -133,8 +133,9 @@ public:
                nullptr;
     }
 
-    /// whether the entry can be stored on disk
-    bool isSerializable() const { return publicKey() && publicKeyScope() == ksDefault; }
+    /// whether Store metadata for this entry can be computed
+    /// (i.e. whether getSerialisedMetaData() calling preconditions are satisfied)
+    bool hasSerialisableMetaData() const { return publicKey() && publicKeyScope() == ksDefault; }
 
     /// Either fills this entry with private key or changes the existing key
     /// from public to private.

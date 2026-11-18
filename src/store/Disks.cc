@@ -554,8 +554,8 @@ void
 Store::Disks::updateHeaders(StoreEntry *e, const StoreEntry &e304)
 {
     Must(e);
-    if (!e->isSerializable()) {
-        debugs(20, 3, "entry " << *e << " is not serializable anymore");
+    if (!e->hasSerialisableMetaData()) {
+        debugs(20, 3, "entry " << *e << " metadata is not serializable");
         return;
     }
     return e->disk().updateHeaders(e, e304);

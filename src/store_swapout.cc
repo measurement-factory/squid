@@ -367,8 +367,8 @@ StoreEntry::mayStartSwapOut()
         return false;
     }
 
-    if (!isSerializable()) {
-        debugs(20, 3, "not serializable");
+    if (!hasSerialisableMetaData()) {
+        debugs(20, 3, "metadata is not serializable");
         swapOutDecision(MemObject::SwapOut::swImpossible);
         return false;
     }

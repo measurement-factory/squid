@@ -165,6 +165,9 @@ Rock::HeaderUpdater::noteDoneReading(int errflag)
 void
 Rock::HeaderUpdater::startWriting()
 {
+    if (!update.entry->hasSerialisableMetaData())
+        throw TextException("the entry metadata is no longer serializable", Here());
+
     writer = store->createUpdateIO(
                  update,
                  &NoteDoneWriting,
@@ -288,8 +291,6 @@ Rock::HeaderUpdater::parseReadBytes()
     debugs(47, 7, "httpBodySizePrefix=" << exchangeBuffer.length());
 
     stopReading("read the last HTTP header slot");
-    if (!update.entry->isSerializable())
-        throw TextException("the entry is no longer serializable", Here());
     startWriting();
 }
 
