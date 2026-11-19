@@ -1063,7 +1063,9 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
 #if USE_ADAPTATION
         tunnelState->startAdaptationAccessCheck();
 #endif
-
+        // TODO: Handle else branch, try to mirror client-side pre-read handling
+        // This happens when the CONNECT receives next bytes in the same read
+        // TODO: check that PUSH payload happens at the same time
         // Shovel any payload already pushed into reply buffer by the server response
         if (!tunnelState->server.len)
             tunnelState->copyServerBytes();
@@ -1099,11 +1101,23 @@ TunnelStateData::startAdaptationAccessCheck()
     // keepGoingAfterRead()). The tunnel stays open until the other direction
     // ends (e.g., EOF) or stays idle for read_timeout.
     Assure(!client.adaptationAccessCheckPending);
+    // TODO: We need a new fake PUT request here, not the original CONNECT request (fake or real)
+    const HttpRequest::Pointer fakePutRequest = new HttpRequest(request->masterXaction);
+    fakePutRequest->method = Http::METHOD_PUT;
+    fakePutRequest->url = request->url;
+    fakePutRequest->http_ver = Http::ProtocolVersion();
+    fakePutRequest->url.setScheme(AnyP::PROTO_HTTP, nullptr);
+    fakePutRequest->header.putStr(Http::HdrType::HOST, fakePutRequest->url.authority().c_str());
+    const auto inherited = fakePutRequest->inheritProperties(request.getRaw());
+    Assure(inherited);
+
     client.adaptationAccessCheckPending = Adaptation::AccessCheck::Start(
-        Adaptation::methodReqmod, Adaptation::pointPreCache, request.getRaw(), nullptr, al, this);
+        Adaptation::methodReqmod, Adaptation::pointPreCache, fakePutRequest.getRaw(), nullptr, al, this);
     debugs(26, 3, "client.adaptationAccessCheckPending=" << client.adaptationAccessCheckPending);
 
     Assure(!server.adaptationAccessCheckPending);
+    // TODO: We need a new fake 200 OK response here. Nil is OK (per Jira comment
+    // TODO: Are we really using resp? ACL CONNECT is a request method, not a response.
     server.adaptationAccessCheckPending = Adaptation::AccessCheck::Start(
         Adaptation::methodRespmod, Adaptation::pointPreCache, request.getRaw(), nullptr, al, this);
     debugs(26, 3, "server.adaptationAccessCheckPending=" << server.adaptationAccessCheckPending);
