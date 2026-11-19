@@ -1101,15 +1101,11 @@ TunnelStateData::startAdaptationAccessCheck()
     // keepGoingAfterRead()). The tunnel stays open until the other direction
     // ends (e.g., EOF) or stays idle for read_timeout.
     Assure(!client.adaptationAccessCheckPending);
-    // TODO: We need a new fake PUT request here, not the original CONNECT request (fake or real)
-    const HttpRequest::Pointer fakePutRequest = new HttpRequest(request->masterXaction);
+
+   const HttpRequest::Pointer fakePutRequest = request->clone();
     fakePutRequest->method = Http::METHOD_PUT;
-    fakePutRequest->url = request->url;
-    fakePutRequest->http_ver = Http::ProtocolVersion();
+    // XXX: The tunneled protocol is unknown, but authority-form is not valid for PUT.
     fakePutRequest->url.setScheme(AnyP::PROTO_HTTP, nullptr);
-    fakePutRequest->header.putStr(Http::HdrType::HOST, fakePutRequest->url.authority().c_str());
-    const auto inherited = fakePutRequest->inheritProperties(request.getRaw());
-    Assure(inherited);
 
     client.adaptationAccessCheckPending = Adaptation::AccessCheck::Start(
         Adaptation::methodReqmod, Adaptation::pointPreCache, fakePutRequest.getRaw(), nullptr, al, this);
