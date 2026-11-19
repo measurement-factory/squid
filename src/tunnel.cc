@@ -1104,7 +1104,7 @@ TunnelStateData::startAdaptationAccessCheck()
 
     const HttpRequest::Pointer fakePutRequest = request->clone();
     fakePutRequest->method = Http::METHOD_PUT;
-    // XXX: The tunneled protocol is unknown, but authority-form is not valid for PUT.
+    // XXX: "http" is a guess (tunneled protocol is unknown); PUT cannot use CONNECT's host:port form.
     fakePutRequest->url.setScheme(AnyP::PROTO_HTTP, nullptr);
 
     client.adaptationAccessCheckPending = Adaptation::AccessCheck::Start(
