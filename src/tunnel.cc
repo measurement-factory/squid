@@ -1102,7 +1102,7 @@ TunnelStateData::startAdaptationAccessCheck()
     // ends (e.g., EOF) or stays idle for read_timeout.
     Assure(!client.adaptationAccessCheckPending);
 
-   const HttpRequest::Pointer fakePutRequest = request->clone();
+    const HttpRequest::Pointer fakePutRequest = request->clone();
     fakePutRequest->method = Http::METHOD_PUT;
     // XXX: The tunneled protocol is unknown, but authority-form is not valid for PUT.
     fakePutRequest->url.setScheme(AnyP::PROTO_HTTP, nullptr);
@@ -1112,10 +1112,11 @@ TunnelStateData::startAdaptationAccessCheck()
     debugs(26, 3, "client.adaptationAccessCheckPending=" << client.adaptationAccessCheckPending);
 
     Assure(!server.adaptationAccessCheckPending);
-    // TODO: We need a new fake 200 OK response here. Nil is OK (per Jira comment
-    // TODO: Are we really using resp? ACL CONNECT is a request method, not a response.
+
+    const HttpReply::Pointer fakeOkReply = new HttpReply;
+    fakeOkReply->sline.set(Http::ProtocolVersion(), Http::scOkay);
     server.adaptationAccessCheckPending = Adaptation::AccessCheck::Start(
-        Adaptation::methodRespmod, Adaptation::pointPreCache, request.getRaw(), nullptr, al, this);
+        Adaptation::methodRespmod, Adaptation::pointPreCache, fakePutRequest.getRaw(), fakeOkReply.getRaw(), al, this);
     debugs(26, 3, "server.adaptationAccessCheckPending=" << server.adaptationAccessCheckPending);
 }
 
