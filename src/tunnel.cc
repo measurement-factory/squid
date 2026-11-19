@@ -1063,10 +1063,8 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
 #if USE_ADAPTATION
         tunnelState->startAdaptationAccessCheck();
 #endif
-        // TODO: Handle else branch, try to mirror client-side pre-read handling
-        // This happens when the CONNECT receives next bytes in the same read
-        // TODO: check that PUSH payload happens at the same time
-        // Shovel any payload already pushed into reply buffer by the server response
+        // XXX: The else branch is unreachable dead code.
+        // It now goes through TunnelStateData::preReadServerData inside TunnelStateData::copyServerBytes instead.
         if (!tunnelState->server.len)
             tunnelState->copyServerBytes();
         else {
