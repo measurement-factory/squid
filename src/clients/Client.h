@@ -65,7 +65,7 @@ public:
 #if USE_ADAPTATION
     // Adaptation::Initiator API: start an ICAP transaction and receive adapted headers.
     void noteAdaptationAnswer(const Adaptation::Answer &answer) override;
-    void noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer group) override;
+    void noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome outcome) override;
 
     // BodyProducer: provide virgin response body to ICAP.
     void noteMoreBodySpaceAvailable(BodyPipe::Pointer ) override;

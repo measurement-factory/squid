@@ -814,7 +814,7 @@ ClientRequestContext::clientAccessCheckDone(const Acl::Answer &answer)
 
 #if USE_ADAPTATION
 void
-ClientHttpRequest::noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer g)
+ClientHttpRequest::noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome outcome)
 {
     debugs(93,3, this << " adaptationAclCheckDone called");
 
@@ -834,13 +834,13 @@ ClientHttpRequest::noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer g)
     }
 #endif
 
-    if (!g) {
+    if (!outcome.group) {
         debugs(85,3, "no adaptation needed");
         doCallouts();
         return;
     }
 
-    startAdaptation(g);
+    startAdaptation(outcome.group);
 }
 
 #endif

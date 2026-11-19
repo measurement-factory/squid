@@ -10,8 +10,11 @@
 #define SQUID_SRC_ADAPTATION_INITIATOR_H
 
 #include "adaptation/forward.h"
+#include "adaptation/ServiceGroups.h"
 #include "base/AsyncJob.h"
 #include "base/CbcPointer.h"
+
+#include <iosfwd>
 
 /*
  * The ICAP Initiator is an ICAP vectoring point that initates ICAP
@@ -25,15 +28,31 @@
 namespace Adaptation
 {
 
+/// the result of an adaptation_access check, reported by AccessCheck to the
+/// Initiator that started that check
+class AccessCheckOutcome
+{
+public:
+    /// the service group where adaptation should start or nil if no adaptation
+    /// is needed
+    ServiceGroupPointer group;
+
+    /// the checked adaptation method; lets an Initiator with concurrent checks
+    /// identify the check, even when group is nil
+    Method method;
+};
+
+std::ostream &operator <<(std::ostream &, const AccessCheckOutcome &);
+
 class Initiator: virtual public AsyncJob
 {
 public:
     Initiator(): AsyncJob("Initiator") {}
     ~Initiator() override {}
 
-    /// AccessCheck calls this back with a possibly nil service group
+    /// AccessCheck calls this back with a possibly nil outcome.group
     /// to signal whether adaptation is needed and where it should start.
-    virtual void noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer group);
+    virtual void noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome outcome);
     /// called with the initial adaptation decision (adapt, block, error);
     /// virgin and/or adapted body transmission may continue after this
     virtual void noteAdaptationAnswer(const Answer &answer) = 0;

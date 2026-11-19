@@ -956,7 +956,7 @@ Client::handleAdaptationBlocked(const Adaptation::Answer &answer)
 }
 
 void
-Client::noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer group)
+Client::noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome outcome)
 {
     adaptationAccessCheckPending = false;
 
@@ -971,14 +971,14 @@ Client::noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer group)
     }
     // TODO: Should we check receivedBodyTooLarge as well?
 
-    if (!group) {
+    if (!outcome.group) {
         debugs(11,3, "no adapation needed");
         setFinalReply(virginReply());
         processReplyBody();
         return;
     }
 
-    startAdaptation(group, originalRequest().getRaw());
+    startAdaptation(outcome.group, originalRequest().getRaw());
     processReplyBody();
 }
 #endif
