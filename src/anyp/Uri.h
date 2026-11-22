@@ -147,6 +147,10 @@ public:
      */
     SBuf &absolute() const;
 
+    /// implements absolute()
+    /// \param allowUserInfo whether userinfo@ (if any) should be included
+    SBuf createAbsolute(bool allowUserInfo) const;
+
     /// RFC 3986 section 4.2 relative reference called 'absolute-path'.
     SBuf &absolutePath() const;
 
