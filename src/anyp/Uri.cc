@@ -730,7 +730,7 @@ AnyP::Uri::absolute() const
 {
     if (absolute_.isEmpty()) {
         const bool allowUserInfo = getScheme() == AnyP::PROTO_FTP ||
-            getScheme() == AnyP::PROTO_UNKNOWN;
+                                   getScheme() == AnyP::PROTO_UNKNOWN;
         absolute_ = createAbsolute(allowUserInfo);
     }
     return absolute_;
@@ -749,8 +749,8 @@ AnyP::Uri::createAbsolute(bool allowUserInfo) const
         absUrl.append("//", 2);
         if (allowUserInfo && !userInfo().isEmpty()) {
             static const CharacterSet uiChars = CharacterSet(UserInfoChars())
-                .remove('%')
-                .rename("userinfo-reserved");
+                                                .remove('%')
+                                                .rename("userinfo-reserved");
             absUrl.append(Encode(userInfo(), uiChars));
             absUrl.append("@", 1);
         }
