@@ -19,7 +19,8 @@ Acl::UrlCheck::match(ACLChecklist * const ch)
 {
     const auto checklist = Filled(ch);
 
+    const auto uri = checklist->request->url.createAbsolute(false);
     // TODO: Consider refactoring so that effectiveRequestUri() returns decoded URI.
-    return data->match(AnyP::Uri::DecodeOrDupe(checklist->request->effectiveRequestUri()).c_str());
+    return data->match(AnyP::Uri::DecodeOrDupe(uri).c_str());
 }
 

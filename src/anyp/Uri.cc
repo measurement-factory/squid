@@ -725,35 +725,48 @@ AnyP::Uri::authority(bool requirePort) const
     return requirePort ? authorityWithPort_ : authorityHttp_;
 }
 
+SBuf
+AnyP::Uri::createAbsolute(bool allowUserInfo) const
+{
+    if (userInfo().isEmpty() && !absolute_.isEmpty())
+        return absolute_;
+
+    // TODO: most URL will be much shorter, avoid allocating this much
+    SBuf absUrl;
+    absUrl.reserveCapacity(MAX_URL);
+
+    absUrl.append(getScheme().image());
+    absUrl.append(":",1);
+    if (getScheme() != AnyP::PROTO_URN) {
+        absUrl.append("//", 2);
+        if (allowUserInfo && !userInfo().isEmpty()) {
+            static const CharacterSet uiChars = CharacterSet(UserInfoChars())
+                                                .remove('%')
+                                                .rename("userinfo-reserved");
+            absUrl.append(Encode(userInfo(), uiChars));
+            absUrl.append("@", 1);
+        }
+        absUrl.append(authority());
+    } else {
+        absUrl.append(host());
+        absUrl.append(":", 1);
+    }
+    absUrl.append(absolutePath());
+
+    if (userInfo().isEmpty())
+        absolute_ = absUrl;
+
+    return absUrl;
+}
+
 SBuf &
 AnyP::Uri::absolute() const
 {
     if (absolute_.isEmpty()) {
-        // TODO: most URL will be much shorter, avoid allocating this much
-        absolute_.reserveCapacity(MAX_URL);
-
-        absolute_.append(getScheme().image());
-        absolute_.append(":",1);
-        if (getScheme() != AnyP::PROTO_URN) {
-            absolute_.append("//", 2);
-            const bool allowUserInfo = getScheme() == AnyP::PROTO_FTP ||
-                                       getScheme() == AnyP::PROTO_UNKNOWN;
-
-            if (allowUserInfo && !userInfo().isEmpty()) {
-                static const CharacterSet uiChars = CharacterSet(UserInfoChars())
-                                                    .remove('%')
-                                                    .rename("userinfo-reserved");
-                absolute_.append(Encode(userInfo(), uiChars));
-                absolute_.append("@", 1);
-            }
-            absolute_.append(authority());
-        } else {
-            absolute_.append(host());
-            absolute_.append(":", 1);
-        }
-        absolute_.append(absolutePath());
+        const bool allowUserInfo = getScheme() == AnyP::PROTO_FTP ||
+                                   getScheme() == AnyP::PROTO_UNKNOWN;
+        absolute_ = createAbsolute(allowUserInfo);
     }
-
     return absolute_;
 }
 
