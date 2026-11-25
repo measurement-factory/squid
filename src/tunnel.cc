@@ -1067,9 +1067,7 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
         Assure(!tunnelState->server.len);
         if (!tunnelState->server.len)
             tunnelState->copyServerBytes();
-        // TODO: Remove this dead else branch. Move its "Tunnel server PUSH Payload"
-        // debugs() before the copyServerBytes() call and make it dump
-        // preReadServerData, like the client PUSH Payload debugs() below.
+        // TODO: Remove this dead else branch. Move its "Tunnel server PUSH Payload" debugs() before the copyServerBytes().
         else {
             debugs(26, DBG_DATA, "Tunnel server PUSH Payload: \n" << Raw("", tunnelState->server.buf, tunnelState->server.len) << "\n----------");
             tunnelState->copy(tunnelState->server.len, tunnelState->server, tunnelState->client, TunnelStateData::WriteClientDone);
