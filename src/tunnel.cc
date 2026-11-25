@@ -1063,10 +1063,13 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
 #if USE_ADAPTATION
         tunnelState->startAdaptationAccessCheck();
 #endif
-        // XXX: The else branch is unreachable dead code.
-        // It now goes through TunnelStateData::preReadServerData inside TunnelStateData::copyServerBytes instead.
+        // XXX: Server bytes received before shoveling are in preReadServerData, so server.len is 0 here.
+        Assure(!tunnelState->server.len);
         if (!tunnelState->server.len)
             tunnelState->copyServerBytes();
+        // TODO: Remove this dead else branch. Move its "Tunnel server PUSH Payload"
+        // debugs() before the copyServerBytes() call and make it dump
+        // preReadServerData, like the client PUSH Payload debugs() below.
         else {
             debugs(26, DBG_DATA, "Tunnel server PUSH Payload: \n" << Raw("", tunnelState->server.buf, tunnelState->server.len) << "\n----------");
             tunnelState->copy(tunnelState->server.len, tunnelState->server, tunnelState->client, TunnelStateData::WriteClientDone);
@@ -1102,9 +1105,12 @@ TunnelStateData::startAdaptationAccessCheck()
 
     const HttpRequest::Pointer fakePutRequest = request->clone();
     fakePutRequest->method = Http::METHOD_PUT;
+    // TODO Check if we can remove the next two lines, URI should already have a scheme and authority from the clone.
     // XXX: "http" is a guess (tunneled protocol is unknown); PUT cannot use CONNECT's host:port form.
     fakePutRequest->url.setScheme(AnyP::PROTO_HTTP, nullptr);
 
+    // TODO we want to create a new al not reuse the existing one.
+    // Check how the al was created by the original CONNECT and try to mimick
     client.adaptationAccessCheckPending = Adaptation::AccessCheck::Start(
         Adaptation::methodReqmod, Adaptation::pointPreCache, fakePutRequest.getRaw(), nullptr, al, this);
     debugs(26, 3, "client.adaptationAccessCheckPending=" << client.adaptationAccessCheckPending);
@@ -1121,7 +1127,7 @@ TunnelStateData::startAdaptationAccessCheck()
 void
 TunnelStateData::noteAdaptationAnswer(const Adaptation::Answer &)
 {
-    Must(false);
+    Assure(false);
 }
 
 void
