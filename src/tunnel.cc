@@ -1103,9 +1103,6 @@ TunnelStateData::startAdaptationAccessCheck()
 
     const HttpRequest::Pointer fakePutRequest = request->clone();
     fakePutRequest->method = Http::METHOD_PUT;
-    // TODO Check if we can remove the next two lines, URI should already have a scheme and authority from the clone.
-    // XXX: "http" is a guess (tunneled protocol is unknown); PUT cannot use CONNECT's host:port form.
-    fakePutRequest->url.setScheme(AnyP::PROTO_HTTP, nullptr);
 
     // TODO we want to create a new al not reuse the existing one.
     // Check how the al was created by the original CONNECT and try to mimick
