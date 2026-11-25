@@ -725,20 +725,12 @@ AnyP::Uri::authority(bool requirePort) const
     return requirePort ? authorityWithPort_ : authorityHttp_;
 }
 
-SBuf &
-AnyP::Uri::absolute() const
-{
-    if (absolute_.isEmpty()) {
-        const bool allowUserInfo = getScheme() == AnyP::PROTO_FTP ||
-                                   getScheme() == AnyP::PROTO_UNKNOWN;
-        absolute_ = createAbsolute(allowUserInfo);
-    }
-    return absolute_;
-}
-
 SBuf
 AnyP::Uri::createAbsolute(bool allowUserInfo) const
 {
+    if (userInfo().isEmpty() && !absolute_.isEmpty())
+        return absolute_;
+
     // TODO: most URL will be much shorter, avoid allocating this much
     SBuf absUrl;
     absUrl.reserveCapacity(MAX_URL);
@@ -760,7 +752,22 @@ AnyP::Uri::createAbsolute(bool allowUserInfo) const
         absUrl.append(":", 1);
     }
     absUrl.append(absolutePath());
+
+    if (userInfo().isEmpty())
+        absolute_ = absUrl;
+
     return absUrl;
+}
+
+SBuf &
+AnyP::Uri::absolute() const
+{
+    if (absolute_.isEmpty()) {
+        const bool allowUserInfo = getScheme() == AnyP::PROTO_FTP ||
+                                   getScheme() == AnyP::PROTO_UNKNOWN;
+        absolute_ = createAbsolute(allowUserInfo);
+    }
+    return absolute_;
 }
 
 SBuf &

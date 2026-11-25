@@ -18,11 +18,8 @@ int
 Acl::UrlCheck::match(ACLChecklist * const ch)
 {
     const auto checklist = Filled(ch);
-    // Manager ACL: prohibit user info altogether because the regex is vulnerable
-    // to attacks with URLs having user info with percent-encoded sequences
-    const auto uri = name.cmp("manager") == 0 ?
-                     checklist->request->url.createAbsolute(false) :
-                     checklist->request->effectiveRequestUri();
+
+    const auto uri = checklist->request->url.createAbsolute(false);
     // TODO: Consider refactoring so that effectiveRequestUri() returns decoded URI.
     return data->match(AnyP::Uri::DecodeOrDupe(uri).c_str());
 }
