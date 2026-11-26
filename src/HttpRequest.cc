@@ -760,6 +760,17 @@ HttpRequest::notes()
 }
 
 void
+HttpRequest::detachNotes()
+{
+    if (!theNotes)
+        return;
+
+    const NotePairs::Pointer copy = new NotePairs;
+    copy->append(theNotes.getRaw());
+    theNotes = copy;
+}
+
+void
 UpdateRequestNotes(ConnStateData *csd, HttpRequest &request, NotePairs const &helperNotes)
 {
     // Tag client connection if the helper responded with clt_conn_tag=tag.

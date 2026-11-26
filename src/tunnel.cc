@@ -1103,19 +1103,34 @@ TunnelStateData::startAdaptationAccessCheck()
 
     const HttpRequest::Pointer fakePutRequest = request->clone();
     fakePutRequest->method = Http::METHOD_PUT;
+    fakePutRequest->detachNotes();
+    const HttpReply::Pointer fakeOkReply = new HttpReply;
+    fakeOkReply->sline.set(Http::ProtocolVersion(), Http::scOkay);
 
-    // TODO we want to create a new al not reuse the existing one.
-    // Check how the al was created by the original CONNECT and try to mimick
+    const AccessLogEntryPointer fakeAle = new AccessLogEntry();
+    fakeAle->cache.start_time = current_time;
+    fakeAle->tcpClient = al->tcpClient;
+    fakeAle->cache.port = al->cache.port;
+    fakeAle->cache.caddr = al->cache.caddr;
+    fakeAle->proxyProtocolHeader = al->proxyProtocolHeader;
+#if USE_OPENSSL
+    fakeAle->cache.sslClientCert = al->cache.sslClientCert;
+#endif
+    fakeAle->hier = al->hier;
+    fakeAle->request = fakePutRequest.getRaw();
+    HTTPMSGLOCK(fakeAle->request);
+    fakeAle->syncNotes(fakePutRequest.getRaw());
+    fakeAle->url = fakePutRequest->effectiveRequestUri();
+    fakeAle->reply = fakeOkReply;
+
     client.adaptationAccessCheckPending = Adaptation::AccessCheck::Start(
-        Adaptation::methodReqmod, Adaptation::pointPreCache, fakePutRequest.getRaw(), nullptr, al, this);
+        Adaptation::methodReqmod, Adaptation::pointPreCache, fakePutRequest.getRaw(), nullptr, fakeAle, this);
     debugs(26, 3, "client.adaptationAccessCheckPending=" << client.adaptationAccessCheckPending);
 
     Assure(!server.adaptationAccessCheckPending);
 
-    const HttpReply::Pointer fakeOkReply = new HttpReply;
-    fakeOkReply->sline.set(Http::ProtocolVersion(), Http::scOkay);
     server.adaptationAccessCheckPending = Adaptation::AccessCheck::Start(
-        Adaptation::methodRespmod, Adaptation::pointPreCache, fakePutRequest.getRaw(), fakeOkReply.getRaw(), al, this);
+        Adaptation::methodRespmod, Adaptation::pointPreCache, fakePutRequest.getRaw(), fakeOkReply.getRaw(), fakeAle, this);
     debugs(26, 3, "server.adaptationAccessCheckPending=" << server.adaptationAccessCheckPending);
 }
 
