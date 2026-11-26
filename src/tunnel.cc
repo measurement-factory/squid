@@ -1104,7 +1104,6 @@ TunnelStateData::startAdaptationAccessCheck()
 
     const HttpRequest::Pointer fakePutRequest = request->clone();
     fakePutRequest->method = Http::METHOD_PUT;
-    fakePutRequest->detachNotes();
     const HttpReply::Pointer fakeOkReply = new HttpReply;
     fakeOkReply->sline.set(Http::ProtocolVersion(), Http::scOkay);
 

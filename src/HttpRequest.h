@@ -246,10 +246,6 @@ public:
     NotePairs::Pointer notes();
     bool hasNotes() const { return bool(theNotes) && !theNotes->empty(); }
 
-    /// Replaces annotations shared with other requests (e.g., by clone()) with
-    /// a private copy, so that future annotation changes affect only us.
-    void detachNotes();
-
     void configureContentLengthInterpreter(Http::ContentLengthInterpreter &) override {}
 
     /// Check whether the message framing headers are valid.
