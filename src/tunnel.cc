@@ -41,6 +41,7 @@
 #include "MemBuf.h"
 #include "neighbors.h"
 #include "PeerSelectState.h"
+#include "proxyp/Header.h"
 #include "ResolvedPeers.h"
 #include "sbuf/SBuf.h"
 #include "security/BlindPeerConnector.h"
