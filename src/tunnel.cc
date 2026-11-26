@@ -41,6 +41,7 @@
 #include "MemBuf.h"
 #include "neighbors.h"
 #include "PeerSelectState.h"
+#include "proxyp/Header.h"
 #include "ResolvedPeers.h"
 #include "sbuf/SBuf.h"
 #include "security/BlindPeerConnector.h"
@@ -54,6 +55,14 @@
 #include "tunnel.h"
 #if USE_DELAY_POOLS
 #include "DelayId.h"
+#endif
+
+#if USE_ADAPTATION
+#include "adaptation/AccessCheck.h"
+#include "adaptation/Answer.h"
+#include "adaptation/Config.h"
+#include "adaptation/ServiceGroups.h"
+#include "adaptation/Iterator.h"
 #endif
 
 #include <climits>
@@ -73,6 +82,9 @@
  * TODO 2: then convert this into a AsyncJob, possibly a child of 'Server'
  */
 class TunnelStateData: public PeerSelectionInitiator
+#if USE_ADAPTATION
+    , public Adaptation::Initiator
+#endif
 {
     CBDATA_CHILD(TunnelStateData);
 
@@ -177,6 +189,13 @@ public:
         DelayId delayId;
 #endif
 
+#if USE_ADAPTATION
+        /// whether we are waiting for the adaptation_access check covering
+        /// bytes read from this connection to complete (i.e. the REQMOD check
+        /// for the client connection and the RESPMOD check for the server one)
+        bool adaptationAccessCheckPending = false;
+#endif
+
     private:
         /// the registered close handler for the connection
         AsyncCall::Pointer closer;
@@ -241,6 +260,11 @@ public:
 
     void saveError(ErrorState *finalError);
     void sendError(ErrorState *finalError, const char *reason);
+#if USE_ADAPTATION
+
+    // AsyncJob API
+    void callException(const std::exception &) override;
+#endif /* USE_ADAPTATION */
 
 private:
     void usePinned();
@@ -282,7 +306,32 @@ private:
     /// packed PROXY protocol header that we need to send (or nil)
     std::optional<SBuf> proxyProtocolHeader;
 
+#if USE_ADAPTATION
+
+    // Adaptation::Initiator API
+    void noteAdaptationAnswer(const Adaptation::Answer &) override;
+    void noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome) override;
+    // AsyncJob API
+    bool doneAll() const override {
+        // Always false because TunnelStateData is not a proper AsyncJob yet:
+        // It is never AsyncJob::Start()ed and destroys itself via deleteThis().
+        // Becoming done() during an Initiator callback would make AsyncJob::callEnd()
+        // fail its assert(started_) check.
+        return false;
+    }
+
+#endif /* USE_ADAPTATION */
+
 public:
+    /* These methods will become private when their legacy callers become methods themselves */
+
+#if USE_ADAPTATION
+
+    /// Starts deciding whether to send tunnel bytes to adaptation services.
+    void startAdaptationAccessCheck();
+
+#endif /* USE_ADAPTATION */
+
     bool keepGoingAfterRead(size_t len, Comm::Flag errcode, int xerrno, Connection &from, Connection &to);
     void copy(size_t len, Connection &from, Connection &to, IOCB *);
     void readServer(char *buf, size_t len, Comm::Flag errcode, int xerrno);
@@ -411,6 +460,9 @@ guaranteedRequest(const ClientHttpRequest * const cr)
 }
 
 TunnelStateData::TunnelStateData(ClientHttpRequest *clientRequest) :
+#if USE_ADAPTATION
+    AsyncJob("TunnelStateData"),
+#endif
     startTime(squid_curtime),
     destinations(new ResolvedPeers()),
     destinationsFound(false),
@@ -953,6 +1005,12 @@ TunnelStateData::copyRead(Connection &from, IOCB *completion)
 void
 TunnelStateData::copyClientBytes()
 {
+#if USE_ADAPTATION
+    if (client.adaptationAccessCheckPending) {
+        debugs(26, 5, "waiting for REQMOD adaptation_access check");
+        return;
+    }
+#endif
     if (preReadClientData.length()) {
         size_t copyBytes = preReadClientData.length() > SQUID_TCP_SO_RCVBUF ? SQUID_TCP_SO_RCVBUF : preReadClientData.length();
         memcpy(client.buf, preReadClientData.rawContent(), copyBytes);
@@ -967,6 +1025,12 @@ TunnelStateData::copyClientBytes()
 void
 TunnelStateData::copyServerBytes()
 {
+#if USE_ADAPTATION
+    if (server.adaptationAccessCheckPending) {
+        debugs(26, 5, "waiting for RESPMOD adaptation_access check");
+        return;
+    }
+#endif
     if (preReadServerData.length()) {
         size_t copyBytes = preReadServerData.length() > SQUID_TCP_SO_RCVBUF ? SQUID_TCP_SO_RCVBUF : preReadServerData.length();
         memcpy(server.buf, preReadServerData.rawContent(), copyBytes);
@@ -997,9 +1061,14 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
     *tunnelState->status_ptr = Http::scOkay;
     if (cbdataReferenceValid(tunnelState)) {
 
-        // Shovel any payload already pushed into reply buffer by the server response
+#if USE_ADAPTATION
+        tunnelState->startAdaptationAccessCheck();
+#endif
+        // XXX: Server bytes received before shoveling are in preReadServerData, so server.len is 0 here.
+        Assure(!tunnelState->server.len);
         if (!tunnelState->server.len)
             tunnelState->copyServerBytes();
+        // TODO: Remove this dead else branch. Move its "Tunnel server PUSH Payload" debugs() before the copyServerBytes().
         else {
             debugs(26, DBG_DATA, "Tunnel server PUSH Payload: \n" << Raw("", tunnelState->server.buf, tunnelState->server.len) << "\n----------");
             tunnelState->copy(tunnelState->server.len, tunnelState->server, tunnelState->client, TunnelStateData::WriteClientDone);
@@ -1014,6 +1083,94 @@ tunnelStartShoveling(TunnelStateData *tunnelState)
         tunnelState->copyClientBytes();
     }
 }
+
+#if USE_ADAPTATION
+void
+TunnelStateData::startAdaptationAccessCheck()
+{
+    debugs(26, 7, "appliesToTunnels=" << Adaptation::Config::appliesToTunnels);
+    if (!Adaptation::Config::appliesToTunnels)
+        return;
+
+    // XXX: If an AccessCheck job never calls us back (e.g., because it threw;
+    // AccessCheck lacks a swanSong() that would notify its initiator), the
+    // corresponding tunnel direction stays blocked.
+    // Other AccessCheck initiators share this problem.
+    // The blocked direction does not time out on its own because each read in
+    // the other direction resets the timeouts of both connections (see
+    // keepGoingAfterRead()). The tunnel stays open until the other direction
+    // ends (e.g., EOF) or stays idle for read_timeout.
+    Assure(!client.adaptationAccessCheckPending);
+
+    const HttpRequest::Pointer fakePutRequest = request->clone();
+    fakePutRequest->method = Http::METHOD_PUT;
+    const HttpReply::Pointer fakeOkReply = new HttpReply;
+    fakeOkReply->sline.set(Http::ProtocolVersion(), Http::scOkay);
+
+    const AccessLogEntryPointer fakeAle = new AccessLogEntry();
+    fakeAle->cache.start_time = current_time;
+    fakeAle->tcpClient = al->tcpClient;
+    fakeAle->cache.port = al->cache.port;
+    fakeAle->cache.caddr = al->cache.caddr;
+    fakeAle->proxyProtocolHeader = al->proxyProtocolHeader;
+#if USE_OPENSSL
+    fakeAle->cache.sslClientCert = al->cache.sslClientCert;
+#endif
+    fakeAle->hier = al->hier;
+    fakeAle->request = fakePutRequest.getRaw();
+    HTTPMSGLOCK(fakeAle->request);
+    fakeAle->syncNotes(fakePutRequest.getRaw());
+    fakeAle->url = fakePutRequest->effectiveRequestUri();
+    fakeAle->reply = fakeOkReply;
+
+    client.adaptationAccessCheckPending = Adaptation::AccessCheck::Start(
+        Adaptation::methodReqmod, Adaptation::pointPreCache, fakePutRequest.getRaw(), nullptr, fakeAle, this);
+    debugs(26, 3, "client.adaptationAccessCheckPending=" << client.adaptationAccessCheckPending);
+
+    Assure(!server.adaptationAccessCheckPending);
+
+    server.adaptationAccessCheckPending = Adaptation::AccessCheck::Start(
+        Adaptation::methodRespmod, Adaptation::pointPreCache, fakePutRequest.getRaw(), fakeOkReply.getRaw(), fakeAle, this);
+    debugs(26, 3, "server.adaptationAccessCheckPending=" << server.adaptationAccessCheckPending);
+}
+
+void
+TunnelStateData::noteAdaptationAnswer(const Adaptation::Answer &)
+{
+    Assure(false);
+}
+
+void
+TunnelStateData::noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome outcome)
+{
+    debugs(26, 3, outcome << "; pending REQMOD: " << client.adaptationAccessCheckPending
+        << ", RESPMOD: " << server.adaptationAccessCheckPending);
+    Assure(outcome.method == Adaptation::methodReqmod || outcome.method == Adaptation::methodRespmod);
+
+    auto &c = outcome.method == Adaptation::methodReqmod ? client : server;
+    Assure(c.adaptationAccessCheckPending);
+    c.adaptationAccessCheckPending = false;
+
+    if (!Comm::IsConnOpen(client.conn) || !Comm::IsConnOpen(server.conn)) {
+        debugs(26, 3, "not resuming after adaptation_access check: a tunnel connection is closed");
+        return;
+    }
+
+    if (outcome.method == Adaptation::methodReqmod)
+        copyClientBytes();
+    else
+        copyServerBytes();
+}
+
+void
+TunnelStateData::callException(const std::exception &e)
+{
+    debugs(26, 3, "closing after exception: " << e.what());
+    // Unlike the default AsyncJob implementation, does not
+    // call mustStop() because we must never become done()
+    closeConnections();
+}
+#endif /* USE_ADAPTATION */
 
 /**
  * All the pieces we need to write to client and/or server connection

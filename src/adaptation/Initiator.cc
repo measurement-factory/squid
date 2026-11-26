@@ -13,8 +13,16 @@
 #include "adaptation/Initiator.h"
 #include "base/AsyncJobCalls.h"
 
+#include <ostream>
+
+std::ostream &
+Adaptation::operator <<(std::ostream &os, const AccessCheckOutcome &outcome)
+{
+    return os << methodStr(outcome.method) << ' ' << outcome.group;
+}
+
 void
-Adaptation::Initiator::noteAdaptationAclCheckDone(Adaptation::ServiceGroupPointer)
+Adaptation::Initiator::noteAdaptationAclCheckDone(Adaptation::AccessCheckOutcome)
 {
     Must(false);
 }
