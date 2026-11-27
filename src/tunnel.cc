@@ -139,11 +139,18 @@ public:
         template <typename Method>
         void initConnection(const Comm::ConnectionPointer &aConn, Method method, const char *name, TunnelStateData *tunnelState);
 
+        /// whether all previously buffered bytes have been consumed and no new
+        /// bytes can be read/buffered
+        bool exhausted() const { return !len && (receivedEof || !IsConnOpen(conn)); }
+
         /// reacts to the external closure of our connection
         void noteClosure();
 
         /// reacts to a successful zero-size read(2)
         void noteEof();
+
+        /// initiates signalling our peer (if any) that we will not write to this connection
+        void sendEof();
 
         int bytesWanted(int lower=0, int upper = INT_MAX) const;
         void bytesIn(int const &);
@@ -174,6 +181,7 @@ public:
         bool dirty; ///< whether write() has been called (at least once)
 
         bool receivedEof = false; ///< whether read() has returned zero bytes
+        bool sentEof = false; ///< whether we shutdown(2) the connection for writing
 
         // XXX: make these an AsyncCall when event API can handle them
         TunnelStateData *readPending;
@@ -342,6 +350,9 @@ operator <<(std::ostream &os, const TunnelStateData::Connection &c)
 
     if (c.receivedEof)
         os << " rEOF";
+
+    if (c.sentEof)
+        os << " wEOF";
 
     os << '}';
     return os;
@@ -752,13 +763,12 @@ TunnelStateData::keepGoingAfterRead(size_t len, Comm::Flag errcode, int xerrno, 
     }
 
     if (len == 0) {
-        debugs(26, 3, "closing " << from << " after a zero-byte read");
-        from.conn->close();
-
-        /* Only close the remote end if we've finished queueing data to it */
-        if (from.len == 0 && Comm::IsConnOpen(to.conn) ) {
-            to.conn->close();
-        }
+        from.noteEof();
+        to.sendEof();
+        // We are now done with the from->to unidirectional read->write "pipe".
+        // Wait for the opposite to->from "pipe" to finish (or quit if it has).
+        if (to.exhausted())
+            finishWritingAndDelete(from);
         return false;
     }
 
@@ -770,9 +780,6 @@ TunnelStateData::keepGoingAfterRead(size_t len, Comm::Flag errcode, int xerrno, 
         from.conn->close();
         return false;
     }
-
-    if (!cbdataReferenceValid(this))
-        return false;
 
     Assure(len > 0);
     return true;
@@ -817,19 +824,13 @@ TunnelStateData::writeServerDone(char *, size_t len, Comm::Flag flag, int xerrno
 
     al->cache.requestWriteTimer.update();
 
-    /* EOF? */
-    if (len == 0) {
-        debugs(26, 4, "No read input. Closing server connection.");
-        server.conn->close();
-        return;
-    }
-
     /* Valid data */
     statCounter.server.all.kbytes_out += len;
     statCounter.server.other.kbytes_out += len;
     client.dataSent(len);
 
     /* If the other end has closed, so should we */
+    // XXX: The other end may have more preloaded bytes we have not written.
     if (!Comm::IsConnOpen(client.conn)) {
         debugs(26, 4, "Client gone away. Shutting down server connection.");
         server.conn->close();
@@ -901,6 +902,20 @@ TunnelStateData::Connection::noteEof()
 {
     debugs(26, 3, "from " << *this);
     receivedEof = true;
+    // no commStartHalfClosedMonitor() because we expect to write to this
+    // potentially half-closed connection and/or close it when the other side of
+    // the tunnel is exhausted()
+}
+
+void
+TunnelStateData::Connection::sendEof()
+{
+    debugs(26, 3, "to " << *this);
+    if (IsConnOpen(conn)) {
+        Assure(!writer);
+        sentEof = true;
+        Comm::HalfClose(conn->fd);
+    }
 }
 
 void
@@ -920,18 +935,12 @@ TunnelStateData::writeClientDone(char *, size_t len, Comm::Flag flag, int xerrno
 
     al->cache.responseWriteTimer.update();
 
-    /* EOF? */
-    if (len == 0) {
-        debugs(26, 4, "Closing client connection due to 0 byte read.");
-        client.conn->close();
-        return;
-    }
-
     /* Valid data */
     statCounter.client_http.kbytes_out += len;
     server.dataSent(len);
 
     /* If the other end has closed, so should we */
+    // XXX: The other end may have more preloaded bytes we have not written.
     if (!Comm::IsConnOpen(server.conn)) {
         debugs(26, 4, "Server has gone away. Terminating client connection.");
         client.conn->close();
@@ -1011,6 +1020,16 @@ TunnelStateData::copyRead(Connection &from, Connection &to, IOCB * const complet
     debugs(26, 5, "from=" << from << "; writing to=" << to);
 
     assert(from.len == 0);
+
+    // Stop reading from source if the destination is gone. This both increases
+    // `from` chances to realize what happened at the `to` end and terminates an
+    // otherwise potentially infinite stream of incoming `from` bytes.
+    if (!Comm::IsConnOpen(to.conn)) {
+        debugs(26, 4, "closing " << from << " because " << to << " is gone");
+        from.conn->close();
+        return;
+    }
+
     // If only the minimum permitted read size is going to be attempted
     // then we schedule an event to try again in a few I/O cycles.
     // Allow at least 1 byte to be read every (0.3*10) seconds.

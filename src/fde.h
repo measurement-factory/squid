@@ -117,6 +117,7 @@ public:
     struct _fde_flags {
         bool open = false;
         bool close_request = false; ///< true if file_ or comm_close has been called
+        bool halfClosing = false; ///< whether Comm::HalfClose() has been called
         bool write_daemon = false;
         bool socket_eof = false;
         bool nolinger = false;
